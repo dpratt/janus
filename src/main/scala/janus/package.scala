@@ -1,10 +1,8 @@
-package com.vast
-
 import akka.dispatch.ExecutionContext
 import java.util.concurrent._
 import java.util.concurrent.atomic.AtomicInteger
 
-package object unstuck {
+package object janus {
 
   def createExecutionContext = ExecutionContext.fromExecutor(
     new ThreadPoolExecutor(0, 64, 60L, TimeUnit.SECONDS,

@@ -1,4 +1,4 @@
-package com.vast.unstuck
+package janus
 
 import org.scalatest.FunSuite
 import org.junit.runner.RunWith
@@ -9,9 +9,9 @@ import akka.util.duration._
 @RunWith(classOf[JUnitRunner])
 class BasicTest extends FunSuite with TestDBSupport {
 
-  implicit val executionContext = com.vast.unstuck.createExecutionContext
+  implicit val executionContext = janus.createExecutionContext
 
-  test("Basic test") {
+  test("Basic query test") {
     val db = Database(testDB)
     val session = db.createSession
     session.withPreparedStatement("select * from test") { ps =>
@@ -25,7 +25,7 @@ class BasicTest extends FunSuite with TestDBSupport {
     session.close()
   }
 
-  test("Basic Transaction handling.") {
+  test("Basic transaction handling.") {
 
     val db = Database(testDB)
 
@@ -155,6 +155,32 @@ class BasicTest extends FunSuite with TestDBSupport {
     }
     db.withSession { session =>
       //row should be gone
+      session.executeQuery("select count(*) from test") { rs =>
+        rs.next()
+        expect(1) {
+          rs.getValue[Int](1)
+        }
+      }
+    }
+  }
+
+  test("Manual rollback") {
+
+    val db = Database(testDB)
+
+    db.withSession { session =>
+      session.withTransaction { transaction =>
+        session.executeSql("insert into test (id, name) VALUES (3, 'Test 3')")
+        //should still be there
+        session.executeQuery("select count(*) from test") { rs =>
+          rs.next()
+          expect(2) {
+            rs.getValue[Int](1)
+          }
+        }
+        transaction.rollback()
+      }
+      //row should be gone, due to manual rollback
       session.executeQuery("select count(*) from test") { rs =>
         rs.next()
         expect(1) {

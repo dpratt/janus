@@ -1,4 +1,4 @@
-package com.vast.unstuck
+package janus
 
 import akka.dispatch.{ExecutionContext, Future}
 import java.sql.Connection

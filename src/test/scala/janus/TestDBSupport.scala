@@ -1,4 +1,4 @@
-package com.vast.unstuck
+package janus
 
 import org.scalatest._
 import javax.sql.DataSource

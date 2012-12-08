@@ -1,4 +1,4 @@
-package com.vast.unstuck
+package janus
 
 import akka.dispatch.Future
 import org.slf4j.{Logger, LoggerFactory}
@@ -36,13 +36,13 @@ object CloseableResource {
     //the Future itself completes. If it isn't a Future, we can clean up right now
     val futureClass = classOf[Future[_]]
     if (!futureClass.isAssignableFrom(resultManifest.erasure)) {
-      logger.debug("Cleaning up non-Future value")
+      logger.debug("Cleaning up for result type {}", resultManifest.toString)
       //we have a regular value
       //the assumption here is that we can just close the transaction
       //otherwise, we would have rolled back and thrown the cause above
       resource.close()
     } else {
-      logger.debug("cleaning up result type of Future")
+      logger.debug("Cleaning up async result type {}", resultManifest.toString)
       val resultFuture = result.asInstanceOf[Future[_]]
       resultFuture.onComplete {
         case Right(_) => resource.close()
@@ -54,6 +54,9 @@ object CloseableResource {
 
 }
 
+/**
+ * Represents a transaction's state.
+ */
 trait Transaction extends CloseableResource {
 
   /**

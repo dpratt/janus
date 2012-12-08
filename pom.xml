@@ -2,30 +2,27 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <parent>
-        <groupId>com.vast.common</groupId>
-        <artifactId>corporate-pom-full</artifactId>
-        <version>0.3.8</version>
-    </parent>
-
-    <groupId>com.vast.unstuck</groupId>
-    <artifactId>unstuck</artifactId>
+    <groupId>org.dpratt</groupId>
+    <artifactId>janus</artifactId>
     <version>1.0.0-SNAPSHOT</version>
 
     <packaging>jar</packaging>
-    <name>Unstuck async database client</name>
-    <description>Unstuck async database client</description>
+    <name>Janus data access client</name>
 
     <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+
         <scala.version>2.9.2</scala.version>
         <akka.version>2.0.3</akka.version>
-
-        <!-- BEGIN Properties required by corporate-pom-full -->
-        <git.prefix>common/unstuck</git.prefix>
-        <teamcity.buildTypeId>bt20</teamcity.buildTypeId>
-        <jira.project/>
-        <!-- END Properties required by corporate-pom-full -->
     </properties>
+
+    <repositories>
+        <repository>
+            <id>typesafe</id>
+            <name>Typesafe Repository</name>
+            <url>http://repo.typesafe.com/typesafe/releases/</url>
+        </repository>
+    </repositories>
 
     <dependencies>
 
@@ -144,30 +141,5 @@
 
         </plugins>
     </build>
-
-    <!--
-**********************************************************************
-BEGIN Copy verbatim to top-level module/reactor
-Required by corporate-pom-full
-**********************************************************************
--->
-    <url>${site.url}</url>
-    <scm>
-        <connection>scm:git:${git.connection}</connection>
-        <developerConnection>scm:git:${git.connection}</developerConnection>
-        <url>${git.url}</url>
-    </scm>
-    <distributionManagement>
-        <site>
-            <id>vast.site</id>
-            <url>${site.deployPath}</url>
-        </site>
-    </distributionManagement>
-    <!--
-    **********************************************************************
-    END Copy verbatim to top-level module/reactor
-    **********************************************************************
-    -->
-
 
 </project>
