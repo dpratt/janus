@@ -8,6 +8,9 @@ with asynchronous Future-based invocations.
 A quick example -
 
 ```scala
+
+def externalCall(id: String) : Future[String]
+
 val db = Database(dataSource)
 db.withSession { session =>
   session.withTransaction { transaction =>
