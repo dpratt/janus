@@ -107,20 +107,24 @@ object JdbcTransaction {
 }
 
 //No support for nested transactions right now - they do nothing.
-sealed class NestedTransaction extends Transaction with Loggable {
+sealed class NestedTransaction extends Transaction {
+
+  import NestedTransaction._
+
   def close() {
     //no-op (for now
+    log.debug("Closing dummy nested transaction.")
   }
 
   def failureHandler(e: Throwable) {
     //no-op (for now
+    log.debug("Failing dummy nested transaction.")
   }
 
   def rollback() {
     //no-op (for now
+    log.debug("Rolling back dummy nested transaction.")
   }
-
-  def logger: Logger = NestedTransaction.log
 }
 
 object NestedTransaction {
