@@ -45,7 +45,7 @@ object CloseableResource {
       logger.debug("cleaning up result type of Future")
       val resultFuture = result.asInstanceOf[Future[_]]
       resultFuture.onComplete {
-        case Right(_) =>resource.close()
+        case Right(_) => resource.close()
         case Left(e) => resource.failureHandler(e)
       }
     }

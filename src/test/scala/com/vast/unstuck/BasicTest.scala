@@ -121,6 +121,49 @@ class BasicTest extends FunSuite with TestDBSupport {
     }
   }
 
+  test("Nested transactions") {
+
+    val db = Database(testDB)
+
+    db.withSession { session =>
+      intercept[RuntimeException] {
+        session.withTransaction { transaction =>
+          session.executeSql("insert into test (id, name) VALUES (3, 'Test 3')")
+          intercept[RuntimeException] {
+            session.withTransaction { nested =>
+              session.executeQuery("select count(*) from test") { rs =>
+                rs.next()
+                expect(2) {
+                  rs.getValue[Int](1)
+                }
+              }
+              //throw an exception - this *shouldn't* roll back the transaction since we're nested
+              throw new RuntimeException("This is a sample")
+            }
+          }
+          //should still be there
+          session.executeQuery("select count(*) from test") { rs =>
+            rs.next()
+            expect(2) {
+              rs.getValue[Int](1)
+            }
+          }
+          //throw another exception - this *should* roll it back
+          throw new RuntimeException("This is a second exception")
+        }
+      }
+    }
+    db.withSession { session =>
+      //row should be gone
+      session.executeQuery("select count(*) from test") { rs =>
+        rs.next()
+        expect(1) {
+          rs.getValue[Int](1)
+        }
+      }
+    }
+  }
+
   def successfulExternalCall(): Future[Boolean] = {
     Future {
       Thread.sleep(500)
