@@ -16,8 +16,11 @@
         <akka.version>2.0.3</akka.version>
 
         <!-- override these in your local settings.xml -->
+        <release.repo.id>UNDEFINED</release.repo.id>
         <release.repo.url>UNDEFINED</release.repo.url>
+        <snapshot.repo.id>UNDEFINED</snapshot.repo.id>
         <snapshot.repo.url>UNDEFINED</snapshot.repo.url>
+
     </properties>
 
     <repositories>
@@ -30,11 +33,11 @@
 
     <distributionManagement>
         <repository>
-            <id>release.repo</id>
+            <id>${release.repo.id}</id>
             <url>${release.repo.url}</url>
         </repository>
         <snapshotRepository>
-            <id>snapshot.repo</id>
+            <id>${snapshot.repo.id}</id>
             <url>${snapshot.repo.url}</url>
         </snapshotRepository>
     </distributionManagement>
