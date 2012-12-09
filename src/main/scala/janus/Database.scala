@@ -29,7 +29,7 @@ trait Database {
 
 }
 
-sealed class JdbcDatabase(ds: DataSource)(implicit val executionContext: ExecutionContext) extends Database {
+sealed class JdbcDatabase(ds: DataSource) extends Database {
 
   def createConnection(): Connection = ds.getConnection
 

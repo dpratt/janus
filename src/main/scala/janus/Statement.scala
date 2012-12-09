@@ -54,6 +54,11 @@ trait PreparedStatement extends CloseableResource {
   def setParam[T : Manifest](index: Int, value: T)
 
   /**
+   * Clear out all the currently set parameters on this prepared statement.
+   */
+  def clearParams()
+
+  /**
    * Get the generated keys from the most recently executed statement. NOTE - the caller is responsible
    * for closing this ResultSet when done with it.
    */
@@ -70,6 +75,8 @@ trait ResultSet extends CloseableResource {
   def next(): Boolean
 
   def getValue[A : Manifest](index: Int): A
+
+  def getValue[A : Manifest](columnName: String): A
 
 }
 
@@ -130,6 +137,14 @@ sealed class JdbcPreparedStatement(ps: java.sql.PreparedStatement) extends Prepa
     }
   }
 
+
+  /**
+   * Clear out all the currently set parameters on this prepared statement.
+   */
+  def clearParams() {
+    ps.clearParameters()
+  }
+
   def generatedKeys(): ResultSet = JdbcResultSet(ps.getGeneratedKeys)
 
   def close() {
@@ -161,6 +176,18 @@ sealed class JdbcResultSet(rs: java.sql.ResultSet) extends ResultSet {
       case IntClass => rs.getInt(index)
       case DoubleClass => rs.getDouble(index)
       case DateSQLClass => rs.getDate(index)
+      case _ => throw new RuntimeException("Unknown type " + m.toString)
+    }).asInstanceOf[A]
+  }
+
+  def getValue[A: Manifest](columnName: String): A = {
+    import ClassConstants._
+    val m = manifest[A]
+    (m.erasure match {
+      case StringClass => rs.getString(columnName)
+      case IntClass => rs.getInt(columnName)
+      case DoubleClass => rs.getDouble(columnName)
+      case DateSQLClass => rs.getDate(columnName)
       case _ => throw new RuntimeException("Unknown type " + m.toString)
     }).asInstanceOf[A]
   }
