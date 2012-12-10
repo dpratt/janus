@@ -176,6 +176,7 @@ sealed class JdbcResultSet(rs: java.sql.ResultSet) extends ResultSet {
       case IntClass => rs.getInt(index)
       case DoubleClass => rs.getDouble(index)
       case DateSQLClass => rs.getDate(index)
+      case LongClass => rs.getLong(index)
       case _ => throw new RuntimeException("Unknown type " + m.toString)
     }).asInstanceOf[A]
   }
@@ -188,6 +189,7 @@ sealed class JdbcResultSet(rs: java.sql.ResultSet) extends ResultSet {
       case IntClass => rs.getInt(columnName)
       case DoubleClass => rs.getDouble(columnName)
       case DateSQLClass => rs.getDate(columnName)
+      case LongClass => rs.getLong(columnName)
       case _ => throw new RuntimeException("Unknown type " + m.toString)
     }).asInstanceOf[A]
   }
@@ -212,6 +214,7 @@ object JdbcResultSet {
 object ClassConstants {
   //useful constants - we use these for pattern matching
   val StringClass = classOf[String]
+  val LongClass = classOf[Long]
   val IntClass = classOf[Int]
   val DoubleClass = classOf[Double]
   val DateSQLClass = classOf[java.sql.Date]

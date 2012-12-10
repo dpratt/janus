@@ -8,7 +8,7 @@ import org.slf4j.LoggerFactory
 import CloseableResource.withResource
 
 object Database {
-  def apply(ds: DataSource)(implicit ec: ExecutionContext) = new JdbcDatabase(ds)
+  def apply(ds: DataSource) = new JdbcDatabase(ds)
 
   //TODO: add other creation methods here - perhaps from URL or DriverManager
 }
