@@ -133,6 +133,7 @@ sealed class JdbcPreparedStatement(ps: java.sql.PreparedStatement) extends Prepa
       case IntClass => ps.setInt(index, value.asInstanceOf[Int])
       case DoubleClass => ps.setDouble(index, value.asInstanceOf[Double])
       case DateSQLClass => ps.setDate(index, value.asInstanceOf[java.sql.Date])
+      case LongClass => ps.setLong(index, value.asInstanceOf[Long])
       case _ => throw new RuntimeException("Unknown type " + m.toString)
     }
   }
