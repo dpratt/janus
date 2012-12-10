@@ -17,11 +17,14 @@ trait Database {
 
   def createSession: Session
 
-  def withSession[T : Manifest](f: Session => T) : T = {
+  def withSession[T](f: Session => T) : T = {
     withResource(createSession)(f)
   }
 
-  def withDetachedSession[T](f: Session => T)(implicit ec: ExecutionContext, m: Manifest[T]): Future[T] = {
+  /**
+   * Shorthand for wrapping a Session in a Future.
+   */
+  def withDetachedSession[T](f: Session => T)(implicit ec: ExecutionContext): Future[T] = {
     Future {
       withSession(f)
     }
@@ -60,7 +63,7 @@ trait Session extends CloseableResource {
    * If there is an already active transaction, a new transaction is not created. Functionally,
    * this method is a no-op in the presence of an existing transaction.
    */
-  def withTransaction[T : Manifest](f: Transaction => T): T
+  def withTransaction[T](f: Transaction => T): T
 
   def executeSql(query: String) = {
     withStatement { stmt =>
@@ -68,17 +71,17 @@ trait Session extends CloseableResource {
     }
   }
 
-  def executeQuery[T : Manifest](query: String)(f: ResultSet => T): T = {
+  def executeQuery[T](query: String)(f: ResultSet => T): T = {
     withStatement { stmt =>
       stmt.executeQuery(query)(f)
     }
   }
 
-  def withPreparedStatement[T : Manifest](query: String)(f: PreparedStatement => T): T = {
+  def withPreparedStatement[T](query: String)(f: PreparedStatement => T): T = {
     withResource(prepareStatement(query))(f)
   }
 
-  def withStatement[T: Manifest](f: Statement => T): T = {
+  def withStatement[T](f: Statement => T): T = {
     withResource(statement())(f)
   }
 
@@ -117,7 +120,7 @@ class JdbcSession(val database: JdbcDatabase) extends Session {
    * If there is an already active transaction, a new transaction is not created. Functionally,
    * this method is a no-op in the presence of an existing transaction.
    */
-  def withTransaction[A : Manifest](f: Transaction => A): A = {
+  def withTransaction[A](f: Transaction => A): A = {
     if(inTransaction) {
       log.debug("No need to start new transaction - already in one.")
       //if we're already in a transaction, don't need to do anything

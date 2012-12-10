@@ -18,7 +18,7 @@ object CloseableResource {
 
   private val logger = LoggerFactory.getLogger(classOf[CloseableResource])
 
-  def withResource[A <: CloseableResource, B](resource: A)(f: A => B)(implicit resultManifest: Manifest[B]) : B = {
+  def withResource[A <: CloseableResource, B](resource: A)(f: A => B) : B = {
     val result = try {
       f(resource)
     } catch {
@@ -34,15 +34,16 @@ object CloseableResource {
     //okay, here's where it gets interesting.
     //If the return type T is a Future, we can't clean up yet. We have to wait until
     //the Future itself completes. If it isn't a Future, we can clean up right now
+    //Note - this could be done with Manifests, but we don't need deep type inspection here
     val futureClass = classOf[Future[_]]
-    if (!futureClass.isAssignableFrom(resultManifest.erasure)) {
-      logger.debug("Cleaning up for result type {}", resultManifest.toString)
+    if (!futureClass.isInstance(result)) {
+      logger.debug("Cleaning up for result type {}", result.getClass.toString)
       //we have a regular value
       //the assumption here is that we can just close the transaction
       //otherwise, we would have rolled back and thrown the cause above
       resource.close()
     } else {
-      logger.debug("Cleaning up async result type {}", resultManifest.toString)
+      logger.debug("Cleaning up async result type {}", result.getClass.toString)
       val resultFuture = result.asInstanceOf[Future[_]]
       resultFuture.onComplete {
         case Right(_) => resource.close()
