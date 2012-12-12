@@ -15,11 +15,14 @@ class BasicTest extends FunSuite with TestDBSupport {
     val db = Database(testDB)
     val session = db.createSession
     session.withPreparedStatement("select * from test") { ps =>
-      ps.executeQuery { rs =>
-        rs.next()
-        expect(1) {
-          rs.getValue[Int](1)
-        }
+      val results = ps.executeQuery { rs =>
+        rs.map(row => row[Int](1))
+      }
+      expect(1) {
+        results.size
+      }
+      expect(1) {
+        results.head
       }
     }
     session.close()
@@ -42,15 +45,14 @@ class BasicTest extends FunSuite with TestDBSupport {
 
     db.withSession { session =>
       //query for this value
-      session.executeQuery("select * from test where id = 2") { rs =>
-      //ensure it's there
-        if(!rs.next()) {
-          fail("Row not present!")
-        } else {
-          expect("Test 2") {
-            rs.getValue[String](2)
-          }
-        }
+      val results = session.executeQuery("select * from test where id = 2") { row =>
+        row[String](2)
+      }
+      expect(1) {
+        results.size
+      }
+      expect("Test 2") {
+        results.head
       }
     }
   }
@@ -60,11 +62,11 @@ class BasicTest extends FunSuite with TestDBSupport {
     val db = Database(testDB)
 
     db.withSession { session =>
-      session.executeQuery("select count(*) from test") { rs =>
-        rs.next()
-        expect(1) {
-          rs.getValue[Int](1)
-        }
+      val results = session.executeQuery("select count(*) from test") { row =>
+        row[Int](1)
+      }
+      expect(1) {
+        results.size
       }
 
       intercept[RuntimeException] {
@@ -77,18 +79,17 @@ class BasicTest extends FunSuite with TestDBSupport {
 
     //create a new session to ensure isolation from the above operations
     db.withSession { session =>
-      val newRows = session.executeQuery("select count(*) from test") { rs =>
-        rs.next()
-        rs.getValue[Int](1)
-      }
+      val newRowCount = session.executeQuery("select count(*) from test") { row =>
+        row[Int](1)
+      }.head
       expect(1) {
         //should only be one row - the rows inserted above should have been rolled back
-        newRows
+        newRowCount
       }
     }
   }
 
-  test("Advanced transactions") {
+  test("Async transactions") {
 
     val db = Database(testDB)
 
@@ -112,11 +113,8 @@ class BasicTest extends FunSuite with TestDBSupport {
 
     //now make sure it's been rolled back
     db.withSession { session =>
-      session.executeQuery("select * from test where id = 2") { rs =>
-        //ensure it's not there
-        if(rs.next()) {
-          fail("Row present!")
-        }
+      if(!session.executeQuery("select * from test where id = 2")(row =>"row" ).isEmpty) {
+        fail("Row present!")
       }
     }
   }
@@ -131,35 +129,44 @@ class BasicTest extends FunSuite with TestDBSupport {
           session.executeSql("insert into test (id, name) VALUES (3, 'Test 3')")
           intercept[RuntimeException] {
             session.withTransaction { nested =>
-              session.executeQuery("select count(*) from test") { rs =>
-                rs.next()
-                expect(2) {
-                  rs.getValue[Int](1)
-                }
+              val rowCount = session.executeQuery("select count(*) from test") { row =>
+                row[Int](1)
+              }.head
+              expect(2) {
+                rowCount
               }
               //throw an exception - this *shouldn't* roll back the transaction since we're nested
               throw new RuntimeException("This is a sample")
             }
           }
           //should still be there
-          session.executeQuery("select count(*) from test") { rs =>
-            rs.next()
-            expect(2) {
-              rs.getValue[Int](1)
-            }
+          val rowCount = session.executeQuery("select count(*) from test") { row =>
+            row[Int](1)
+          }
+          expect(2) {
+            rowCount.head
           }
           //throw another exception - this *should* roll it back
           throw new RuntimeException("This is a second exception")
         }
       }
+      //row should be gone
+      val rowCount = session.executeQuery("select count(*) from test") { row =>
+        row[Int](1)
+      }
+      expect(1) {
+        rowCount.head
+      }
     }
+
+    //more checks - ensure that it doesn't show up in another connection either
     db.withSession { session =>
       //row should be gone
-      session.executeQuery("select count(*) from test") { rs =>
-        rs.next()
-        expect(1) {
-          rs.getValue[Int](1)
-        }
+      val rowCount = session.executeQuery("select count(*) from test") { row =>
+        row[Int](1)
+      }
+      expect(1) {
+        rowCount.head
       }
     }
   }
@@ -172,20 +179,20 @@ class BasicTest extends FunSuite with TestDBSupport {
       session.withTransaction { transaction =>
         session.executeSql("insert into test (id, name) VALUES (3, 'Test 3')")
         //should still be there
-        session.executeQuery("select count(*) from test") { rs =>
-          rs.next()
-          expect(2) {
-            rs.getValue[Int](1)
-          }
+        val results = session.executeQuery("select count(*) from test") { row =>
+          row[Int](1)
+        }
+        expect(2) {
+          results.head
         }
         transaction.rollback()
       }
       //row should be gone, due to manual rollback
-      session.executeQuery("select count(*) from test") { rs =>
-        rs.next()
-        expect(1) {
-          rs.getValue[Int](1)
-        }
+      val rowCount = session.executeQuery("select count(*) from test") { row =>
+        row[Int](1)
+      }
+      expect(1) {
+        rowCount.head
       }
     }
   }

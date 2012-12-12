@@ -71,9 +71,9 @@ trait Session extends CloseableResource {
     }
   }
 
-  def executeQuery[T](query: String)(f: ResultSet => T): T = {
+  def executeQuery[T](query: String)(f: ResultRow => T): Traversable[T] = {
     withStatement { stmt =>
-      stmt.executeQuery(query)(f)
+      stmt.executeQuery(query)(_.map(f))
     }
   }
 

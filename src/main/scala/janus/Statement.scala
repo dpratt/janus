@@ -37,6 +37,7 @@ trait PreparedStatement extends CloseableResource {
 
   /**
    * Execute the query contained in this statement and process the rows with the supplied handler.
+   * Each row in the resultset will be mapped using the supplied function.
    * @return
    */
   def executeQuery[A](resultHandler: ResultSet => A): A
@@ -67,17 +68,18 @@ trait PreparedStatement extends CloseableResource {
 }
 
 /**
- * A thin wrapper on top of the JDBC result set
+ * A thin wrapper on top of the JDBC result set.
+ *
+ * Note - some of the Traversable opertaions on this object have the potential to be
+ * *very* slow. For example, size() has to iterate across the whole collection. Be warned.
  */
-trait ResultSet extends CloseableResource {
+trait ResultSet extends CloseableResource with Traversable[ResultRow] {
 
-  //TODO: Perhaps make this iterable?
-  def next(): Boolean
+}
 
-  def getValue[A : ClassManifest](index: Int): A
-
-  def getValue[A : ClassManifest](columnName: String): A
-
+trait ResultRow {
+  def apply[A : ClassManifest](index: Int): A
+  def apply[A : ClassManifest](columnName: String): A
 }
 
 sealed class JdbcStatement(stmt: java.sql.Statement) extends Statement {
@@ -121,6 +123,7 @@ sealed class JdbcPreparedStatement(ps: java.sql.PreparedStatement) extends Prepa
   def execute(): Boolean = ps.execute()
 
   def executeQuery[A](resultHandler: ResultSet => A): A = {
+    //wrap the JDBC ResultSet
     withResource(JdbcResultSet(ps.executeQuery()))(resultHandler)
   }
   def executeUpdate(): Int = ps.executeUpdate()
@@ -162,14 +165,20 @@ object JdbcPreparedStatement {
   val log = LoggerFactory.getLogger(classOf[JdbcPreparedStatement])
 }
 
-sealed class JdbcResultSet(rs: java.sql.ResultSet) extends ResultSet {
-  //TODO: Perhaps make this iterable?
+sealed class JdbcResultSet(rs: java.sql.ResultSet) extends ResultSet with ResultRow {
 
+  //this class is both the collection and the element since that's what the underlying
+  //JDBC abstraction is
   import JdbcResultSet._
 
-  def next(): Boolean = rs.next()
+  def foreach[U](f: (ResultRow) => U) {
+    rs.beforeFirst()
+    while (rs.next()) {
+      f(this)
+    }
+  }
 
-  def getValue[A: ClassManifest](index: Int): A = {
+  def apply[A: ClassManifest](index: Int): A = {
     import ClassConstants._
     val m = classManifest[A]
     (m.erasure match {
@@ -182,7 +191,7 @@ sealed class JdbcResultSet(rs: java.sql.ResultSet) extends ResultSet {
     }).asInstanceOf[A]
   }
 
-  def getValue[A: ClassManifest](columnName: String): A = {
+  def apply[A: ClassManifest](columnName: String): A = {
     import ClassConstants._
     val m = classManifest[A]
     (m.erasure match {
