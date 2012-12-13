@@ -36,21 +36,33 @@ object CloseableResource {
     //the Future itself completes. If it isn't a Future, we can clean up right now
     //Note - this could be done with Manifests, but we don't need deep type inspection here
     val futureClass = classOf[Future[_]]
+    val resourceClass = resource.getClass
     if (!futureClass.isInstance(result)) {
-      logger.debug("Cleaning up for result type {}", result.getClass.toString)
+      logger.debug("Cleaning up for plain resource of type {}", resourceClass.toString)
       //we have a regular value
       //the assumption here is that we can just close the transaction
       //otherwise, we would have rolled back and thrown the cause above
       resource.close()
+      result
     } else {
-      logger.debug("Cleaning up async result type {}", result.getClass.toString)
       val resultFuture = result.asInstanceOf[Future[_]]
-      resultFuture.onComplete {
-        case Right(_) => resource.close()
-        case Left(e) => resource.failureHandler(e)
+      logger.debug("Adding cleanup handler for {} - {}", Array(resourceClass.toString, resultFuture.toString))
+      //transform the result Future into a new Future that will have a defined order of completion handlers
+      //andThen will cause a defined ordering of handlers - we need to do this to ensure that handlers wrapped around the
+      //future at a higher level execute in the proper order - for example, after the Future completes, we need to clean up
+      //a PreparedStatement, *then* a Transaction, *then* the Session or connection.
+      val transformedFuture = resultFuture andThen {
+        case Right(_) => {
+          logger.debug("Cleaning up Future resource of type {}", resourceClass.toString)
+          resource.close()
+        }
+        case Left(e) => {
+          logger.debug("Rolling back Future resource of type {}", resourceClass.toString)
+          resource.failureHandler(e)
+        }
       }
+      transformedFuture.asInstanceOf[B]
     }
-    result
   }
 
 }

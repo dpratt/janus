@@ -87,7 +87,7 @@ sealed class JdbcStatement(stmt: java.sql.Statement) extends Statement {
   import JdbcStatement._
 
   def close() {
-    log.debug("Closing statement - {}", stmt.toString)
+    log.debug("Closing statement")
     stmt.close()
   }
 
@@ -152,6 +152,7 @@ sealed class JdbcPreparedStatement(ps: java.sql.PreparedStatement) extends Prepa
   def generatedKeys(): ResultSet = JdbcResultSet(ps.getGeneratedKeys)
 
   def close() {
+    log.debug("Closing prepared statement - {}", ps.toString)
     ps.close()
   }
 
@@ -205,6 +206,7 @@ sealed class JdbcResultSet(rs: java.sql.ResultSet) extends ResultSet with Result
   }
 
   def close() {
+    log.debug("Closing ResultSet")
     rs.close()
   }
 

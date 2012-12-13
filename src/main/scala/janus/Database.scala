@@ -11,13 +11,17 @@ object Database {
   def apply(ds: DataSource) = new JdbcDatabase(ds)
 
   //TODO: add other creation methods here - perhaps from URL or DriverManager
+  val logger = LoggerFactory.getLogger(classOf[Database])
 }
 
 trait Database {
 
+  import Database._
+
   def createSession: Session
 
   def withSession[T](f: Session => T) : T = {
+    logger.debug("Creating new session.")
     withResource(createSession)(f)
   }
 
@@ -25,6 +29,7 @@ trait Database {
    * Shorthand for wrapping a Session in a Future.
    */
   def withDetachedSession[T](f: Session => T)(implicit ec: ExecutionContext): Future[T] = {
+    logger.debug("Creating new detached session.")
     Future {
       withSession(f)
     }
@@ -106,6 +111,7 @@ class JdbcSession(val database: JdbcDatabase) extends Session {
    * Close this session
    */
   def close() {
+    log.debug("Closing session/connection.")
     conn.close()
   }
   def failureHandler(e: Throwable) {
@@ -143,7 +149,10 @@ class JdbcSession(val database: JdbcDatabase) extends Session {
     new JdbcPreparedStatement(conn.prepareStatement(query, java.sql.Statement.RETURN_GENERATED_KEYS))
   }
 
-  def statement(): Statement = new JdbcStatement(conn.createStatement())
+  def statement(): Statement = {
+    log.debug("Creating new Statement")
+    new JdbcStatement(conn.createStatement())
+  }
 }
 
 object JdbcSession {
