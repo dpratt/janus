@@ -16,7 +16,7 @@ trait CloseableResource {
 
 object CloseableResource {
 
-  private val logger = LoggerFactory.getLogger(classOf[CloseableResource])
+  private val logger = LoggerFactory.getLogger(CloseableResource.getClass)
 
   def withResource[A <: CloseableResource, B](resource: A)(f: A => B) : B = {
     val resourceClass = resource.getClass
@@ -100,7 +100,7 @@ sealed class JdbcTransaction(c: Connection) extends Transaction {
   }
 
   def failureHandler(e: Throwable) {
-    log.debug("Failing transaction due to exception.", e)
+    log.debug("Failing transaction due to exception.")
     doRollback()
   }
 
