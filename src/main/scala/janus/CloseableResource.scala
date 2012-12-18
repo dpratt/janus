@@ -19,11 +19,13 @@ object CloseableResource {
   private val logger = LoggerFactory.getLogger(classOf[CloseableResource])
 
   def withResource[A <: CloseableResource, B](resource: A)(f: A => B) : B = {
+    val resourceClass = resource.getClass
+
     val result = try {
       f(resource)
     } catch {
       case e: Throwable => {
-        logger.error("Error wrapping resource. Cleaning up.", e)
+        logger.error("Error wrapping resource of type {}. Cleaning up.", resourceClass.toString)
         //something went wrong constructing the value
         //clean up and re-throw
         resource.failureHandler(e)
@@ -36,7 +38,6 @@ object CloseableResource {
     //the Future itself completes. If it isn't a Future, we can clean up right now
     //Note - this could be done with Manifests, but we don't need deep type inspection here
     val futureClass = classOf[Future[_]]
-    val resourceClass = resource.getClass
     if (!futureClass.isInstance(result)) {
       logger.debug("Cleaning up for plain resource of type {}", resourceClass.toString)
       //we have a regular value

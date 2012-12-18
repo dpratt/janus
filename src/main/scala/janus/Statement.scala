@@ -2,6 +2,7 @@ package janus
 
 import org.slf4j.LoggerFactory
 import CloseableResource.withResource
+import collection.mutable.ArrayBuffer
 
 trait Statement extends CloseableResource {
 
@@ -48,6 +49,21 @@ trait PreparedStatement extends CloseableResource {
   def executeUpdate(): Int
 
   /**
+   * Add the current parameter state to this PreparedStatement's batch list.
+   */
+  def addBatch()
+
+  /**
+   * Remove all batched statements from this PreparedStatement.
+   */
+  def clearBatch()
+
+  /**
+   * Execute this PreparedStatement once for each batch of parameters that have been added to it.
+   */
+  def executeBatch(): Array[Int]
+
+  /**
    * Set the value of a parameter in this statement to the specified value
    * @param value the value to set
    * @tparam T the type of the value
@@ -60,10 +76,9 @@ trait PreparedStatement extends CloseableResource {
   def clearParams()
 
   /**
-   * Get the generated keys from the most recently executed statement. NOTE - the caller is responsible
-   * for closing this ResultSet when done with it.
+   * Get the generated keys from the most recently executed statement.
    */
-  def generatedKeys(): ResultSet
+  def generatedKeys[A : ClassManifest](): Seq[A]
 
 }
 
@@ -92,7 +107,7 @@ sealed class JdbcStatement(stmt: java.sql.Statement) extends Statement {
   }
 
   def failureHandler(e: Throwable) {
-    log.debug("Cleaning up statement due to exception - {}", Array(stmt.toString, e))
+    log.debug("Cleaning up statement due to exception - {}", stmt.toString)
     close()
   }
 
@@ -128,6 +143,28 @@ sealed class JdbcPreparedStatement(ps: java.sql.PreparedStatement) extends Prepa
   }
   def executeUpdate(): Int = ps.executeUpdate()
 
+
+  /**
+   * Add the current parameter state to this PreparedStatement's batch list.
+   */
+  def addBatch() {
+    ps.addBatch()
+  }
+
+  /**
+   * Remove all batched statements from this PreparedStatement.
+   */
+  def clearBatch() {
+    ps.clearBatch()
+  }
+
+  /**
+   * Execute this PreparedStatement once for each batch of parameters that have been added to it.
+   */
+  def executeBatch(): Array[Int] = {
+    ps.executeBatch()
+  }
+
   def setParam[T : ClassManifest](index: Int, value: T) {
     import ClassConstants._
     val m = classManifest[T]
@@ -149,7 +186,22 @@ sealed class JdbcPreparedStatement(ps: java.sql.PreparedStatement) extends Prepa
     ps.clearParameters()
   }
 
-  def generatedKeys(): ResultSet = JdbcResultSet(ps.getGeneratedKeys)
+
+  /**
+   * Get the generated keys from the most recently executed statement.
+   */
+  def generatedKeys[A : ClassManifest](): Seq[A] = {
+    val rs = ps.getGeneratedKeys
+    try {
+      val keys = new ArrayBuffer[A]()
+      while(rs.next()) {
+        keys.append(JdbcResultSet.getValue[A](rs, 1))
+      }
+      keys
+    } finally {
+      rs.close()
+    }
+  }
 
   def close() {
     log.debug("Closing prepared statement - {}", ps.toString)
@@ -157,7 +209,7 @@ sealed class JdbcPreparedStatement(ps: java.sql.PreparedStatement) extends Prepa
   }
 
   def failureHandler(e: Throwable) {
-    log.error("Closing prepared statement due to exception.", e)
+    log.error("Closing prepared statement due to exception.")
     close()
   }
 }
@@ -179,7 +231,26 @@ sealed class JdbcResultSet(rs: java.sql.ResultSet) extends ResultSet with Result
     }
   }
 
-  def apply[A: ClassManifest](index: Int): A = {
+  def apply[A: ClassManifest](index: Int): A = JdbcResultSet.getValue(rs, index)
+  def apply[A: ClassManifest](columnName: String): A = JdbcResultSet.getValue(rs, columnName)
+
+  def close() {
+    log.debug("Closing ResultSet")
+    rs.close()
+  }
+
+  def failureHandler(e: Throwable) {
+    log.error("Closing ResultSet due to exception.")
+  }
+}
+
+object JdbcResultSet {
+
+  def apply(rs: java.sql.ResultSet) = new JdbcResultSet(rs)
+
+  val log = LoggerFactory.getLogger(classOf[JdbcResultSet])
+
+  def getValue[A: ClassManifest](rs: java.sql.ResultSet, index: Int): A = {
     import ClassConstants._
     val m = classManifest[A]
     (m.erasure match {
@@ -192,7 +263,7 @@ sealed class JdbcResultSet(rs: java.sql.ResultSet) extends ResultSet with Result
     }).asInstanceOf[A]
   }
 
-  def apply[A: ClassManifest](columnName: String): A = {
+  def getValue[A: ClassManifest](rs: java.sql.ResultSet, columnName: String): A = {
     import ClassConstants._
     val m = classManifest[A]
     (m.erasure match {
@@ -205,21 +276,7 @@ sealed class JdbcResultSet(rs: java.sql.ResultSet) extends ResultSet with Result
     }).asInstanceOf[A]
   }
 
-  def close() {
-    log.debug("Closing ResultSet")
-    rs.close()
-  }
 
-  def failureHandler(e: Throwable) {
-    log.error("Closing ResultSet due to exception.", e)
-  }
-}
-
-object JdbcResultSet {
-
-  def apply(rs: java.sql.ResultSet) = new JdbcResultSet(rs)
-
-  val log = LoggerFactory.getLogger(classOf[JdbcResultSet])
 }
 
 
