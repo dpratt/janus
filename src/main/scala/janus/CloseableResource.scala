@@ -80,7 +80,7 @@ trait Transaction extends CloseableResource {
 }
 
 
-sealed class JdbcTransaction(c: Connection) extends Transaction {
+private[janus] class JdbcTransaction(c: Connection) extends Transaction {
 
   import JdbcTransaction._
 
@@ -119,7 +119,7 @@ sealed class JdbcTransaction(c: Connection) extends Transaction {
   }
 }
 
-object JdbcTransaction {
+private[janus] object JdbcTransaction {
   val log = LoggerFactory.getLogger(classOf[JdbcTransaction])
 }
 

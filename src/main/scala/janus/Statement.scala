@@ -82,7 +82,7 @@ trait PreparedStatement extends CloseableResource {
 
 }
 
-sealed class JdbcStatement(stmt: java.sql.Statement) extends Statement {
+private[janus] class JdbcStatement(stmt: java.sql.Statement) extends Statement {
 
   import JdbcStatement._
 
@@ -112,11 +112,11 @@ sealed class JdbcStatement(stmt: java.sql.Statement) extends Statement {
   def generatedKeys = JdbcRow.convertResultSet(stmt.getGeneratedKeys)
 }
 
-object JdbcStatement {
+private[janus] object JdbcStatement {
   val log = LoggerFactory.getLogger(classOf[JdbcStatement])
 }
 
-sealed class JdbcPreparedStatement(ps: java.sql.PreparedStatement) extends PreparedStatement {
+private[janus] class JdbcPreparedStatement(ps: java.sql.PreparedStatement) extends PreparedStatement {
 
   import JdbcPreparedStatement._
 
@@ -171,7 +171,7 @@ sealed class JdbcPreparedStatement(ps: java.sql.PreparedStatement) extends Prepa
   }
 }
 
-object JdbcPreparedStatement {
+private[janus] object JdbcPreparedStatement {
   val log = LoggerFactory.getLogger(classOf[JdbcPreparedStatement])
 }
 

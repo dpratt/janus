@@ -37,7 +37,7 @@ trait Database {
 
 }
 
-sealed class JdbcDatabase(ds: DataSource) extends Database {
+private[janus] class JdbcDatabase(ds: DataSource) extends Database {
 
   def createConnection(): Connection = ds.getConnection
 
@@ -115,7 +115,7 @@ trait Session extends CloseableResource {
   def statement(): Statement
 }
 
-class JdbcSession(val database: JdbcDatabase) extends Session {
+private[janus] class JdbcSession(val database: JdbcDatabase) extends Session {
 
   import JdbcSession._
 
