@@ -1,7 +1,7 @@
 package janus
 
 import akka.dispatch.Future
-import org.slf4j.{Logger, LoggerFactory}
+import org.slf4j.LoggerFactory
 import java.sql.Connection
 
 /**
@@ -25,7 +25,7 @@ object CloseableResource {
       f(resource)
     } catch {
       case e: Throwable => {
-        logger.error("Error wrapping resource of type {}. Cleaning up.", resourceClass.toString)
+        logger.debug("Error wrapping resource of type {}. Cleaning up.", resourceClass.toString)
         //something went wrong constructing the value
         //clean up and re-throw
         resource.failureHandler(e)

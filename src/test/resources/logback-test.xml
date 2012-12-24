@@ -7,7 +7,7 @@
         </encoder>
     </appender>
 
-    <logger name="com.vast" level="DEBUG" />
+    <logger name="janus" level="DEBUG" />
 
     <root level="ERROR">
         <appender-ref ref="STDOUT"/>
