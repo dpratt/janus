@@ -24,13 +24,13 @@ class UnknownColumnException(message: String)
 class Metadata(val columns: IndexedSeq[ColumnInfo]) {
 
   private lazy val columnIndexMap: Map[String, Int] = columns.zipWithIndex.flatMap {
-    case (column, index) => List((column.shortName, index), (column.name, index), (column.alias, index))
+    case (column, index) => List((column.shortName.toUpperCase, index), (column.name.toUpperCase, index), (column.alias.toUpperCase, index))
   }.toMap
 
   lazy val availableColumns: Seq[String] = columnIndexMap.keys.toSeq
 
   def get(name: String): Try[ColumnInfo] = {
-    indexForColumn(name) map { index =>
+    indexForColumn(name.toUpperCase) map { index =>
       columns(index)
     }
   }
@@ -46,7 +46,7 @@ class Metadata(val columns: IndexedSeq[ColumnInfo]) {
 
   def indexForColumn(columnName: String): Try[Int] = {
     Try {
-      columnIndexMap.getOrElse(columnName, throw new UnknownColumnException(columnName, availableColumns))
+      columnIndexMap.getOrElse(columnName.toUpperCase, throw new UnknownColumnException(columnName, availableColumns))
     }
   }
 }
@@ -101,7 +101,7 @@ trait Row {
    * @return
    */
   def apply[A : Column](columnName: String): A = {
-    metadata.indexForColumn(columnName.toUpperCase).flatMap { index =>
+    metadata.indexForColumn(columnName).flatMap { index =>
       get(index)
     }.get()
   }
