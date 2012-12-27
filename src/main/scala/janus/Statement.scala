@@ -144,7 +144,7 @@ private[janus] class JdbcPreparedStatement(ps: java.sql.PreparedStatement) exten
     //stupid JDBC is 1-based
     val realIndex = index + 1
     value match {
-      case o: Option[_] => setParam(realIndex, o.orNull)
+      case o: Option[_] => setParam(index, o.orNull)
       case s: String => ps.setString(realIndex, s)
       case i: Int => ps.setInt(realIndex, i)
       case l: Long => ps.setLong(realIndex, l)
