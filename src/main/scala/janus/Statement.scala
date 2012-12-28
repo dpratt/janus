@@ -155,6 +155,7 @@ private[janus] class JdbcPreparedStatement(ps: java.sql.PreparedStatement) exten
         log.warn("Unknown type.")
         ps.setObject(realIndex, value)
       }
+      case null => ps.setObject(realIndex, null)
     }
   }
 

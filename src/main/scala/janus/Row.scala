@@ -95,10 +95,6 @@ trait Row {
 
   /**
    * Retrieve a value from this row.
-   *
-   * @param columnName
-   * @tparam A The desired output type.
-   * @return
    */
   def apply[A : Column](columnName: String): A = {
     metadata.indexForColumn(columnName).flatMap { index =>
@@ -109,7 +105,6 @@ trait Row {
   /**
    * Retrieve a value from this row.
    * @param index The index of the column in the result set. NOTE - unlike JDBC, this is *zero based*.
-   * @tparam A
    * @return
    */
   def apply[A : Column](index: Int): A = {
@@ -126,7 +121,15 @@ object ValueExtractor {
     //transform the supplied PF to Any => Option[A]
     val lifted = pf.lift
     new ValueExtractor[A] {
-      def apply(value: Any): Option[A] = lifted(value)
+      def apply(value: Any): Option[A] = {
+        if (value == null) {
+          //can't extract a null value - we pass it through, though, since a
+          //ValueExtractor really just does type coercion for us.
+          Some(null).asInstanceOf[Option[A]]
+        } else {
+          lifted(value)
+        }
+      }
     }
   }
 
@@ -169,7 +172,7 @@ trait Column[A] extends ((Any, ColumnInfo) => Try[A])
 
 
 class IncompatibleColumnTypeException(value: Any, columnName: String, targetType: Class[_])
-  extends Exception("Cannot convert " + value + " : " + value.asInstanceOf[AnyRef].getClass + " to " + targetType.toString + " for column " + columnName)
+  extends Exception("Cannot convert '" + value + "' to " + targetType.toString + " for column " + columnName)
 
 object Column {
 
