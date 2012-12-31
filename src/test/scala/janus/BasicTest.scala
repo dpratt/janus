@@ -3,13 +3,13 @@ package janus
 import org.scalatest.FunSuite
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
-import akka.dispatch.{Future, Await}
-import akka.util.duration._
+import concurrent.{Await, Future}
+import concurrent.duration._
+
+import scala.concurrent.ExecutionContext.Implicits.global
 
 @RunWith(classOf[JUnitRunner])
 class BasicTest extends FunSuite with TestDBSupport {
-
-  implicit val executionContext = janus.createExecutionContext("test")
 
   test("Basic query test") {
     val db = Database(testDB)

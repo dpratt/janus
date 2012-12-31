@@ -1,11 +1,11 @@
 package janus
 
-import akka.dispatch.{ExecutionContext, Future}
 import java.sql.Connection
 import javax.sql.DataSource
 import org.slf4j.LoggerFactory
 
 import CloseableResource.withResource
+import concurrent.{ExecutionContext, Future}
 
 object Database {
   def apply(ds: DataSource) = new JdbcDatabase(ds)

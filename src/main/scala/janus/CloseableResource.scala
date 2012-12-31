@@ -1,8 +1,11 @@
 package janus
 
-import akka.dispatch.Future
 import org.slf4j.LoggerFactory
 import java.sql.Connection
+import concurrent.{ExecutionContext, Future}
+import util.{Failure, Success}
+
+import ExecutionContext.Implicits.global
 
 /**
  * Indicates that this class implements a disposable resource.
@@ -53,11 +56,11 @@ object CloseableResource {
       //future at a higher level execute in the proper order - for example, after the Future completes, we need to clean up
       //a PreparedStatement, *then* a Transaction, *then* the Session or connection.
       val transformedFuture = resultFuture andThen {
-        case Right(_) => {
+        case Success(_) => {
           logger.debug("Cleaning up Future resource of type {}", resourceClass.toString)
           resource.close()
         }
-        case Left(e) => {
+        case Failure(e) => {
           logger.debug("Rolling back Future resource of type {}", resourceClass.toString)
           resource.failureHandler(e)
         }

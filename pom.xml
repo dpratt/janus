@@ -12,8 +12,7 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
-        <scala.version>2.9.2</scala.version>
-        <akka.version>2.0.3</akka.version>
+        <scala.version>2.10.0</scala.version>
 
         <!-- override these in your local settings.xml -->
         <release.repo.id>UNDEFINED</release.repo.id>
@@ -44,23 +43,10 @@
 
     <dependencies>
 
-        <!-- for futures -->
-        <dependency>
-            <groupId>com.typesafe.akka</groupId>
-            <artifactId>akka-actor</artifactId>
-            <version>${akka.version}</version>
-        </dependency>
-
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
             <version>1.7.2</version>
-        </dependency>
-
-        <dependency>
-            <groupId>com.twitter</groupId>
-            <artifactId>util-core</artifactId>
-            <version>6.0.3</version>
         </dependency>
 
         <dependency>
@@ -72,8 +58,8 @@
 
         <dependency>
             <groupId>org.scalatest</groupId>
-            <artifactId>scalatest_2.9.2</artifactId>
-            <version>1.8</version>
+            <artifactId>scalatest_2.10</artifactId>
+            <version>1.9.1</version>
             <scope>test</scope>
         </dependency>
 

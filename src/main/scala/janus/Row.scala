@@ -1,10 +1,10 @@
 package janus
 
 import java.sql
-import com.twitter.util.Try
 import sql.ResultSetMetaData
 import org.slf4j.LoggerFactory
 import java.util.Date
+import util.Try
 
 case class ColumnInfo(name: String, alias: String, nullable: Boolean, valueClassName: String) {
   val shortName = name.split(".").lastOption.getOrElse(name)
@@ -99,7 +99,7 @@ trait Row {
   def apply[A : Column](columnName: String): A = {
     metadata.indexForColumn(columnName).flatMap { index =>
       get(index)
-    }.get()
+    }.get
   }
 
   /**
@@ -108,7 +108,7 @@ trait Row {
    * @return
    */
   def apply[A : Column](index: Int): A = {
-    get(index).get()
+    get(index).get
   }
 
 }
@@ -178,7 +178,7 @@ object Column {
 
   val log = LoggerFactory.getLogger(classOf[Column[_]])
 
-  def notNull[A](implicit ve: ValueExtractor[A], m: ClassManifest[A]): Column[A] = new Column[A] {
+  def notNull[A](implicit ve: ValueExtractor[A], m: Manifest[A]): Column[A] = new Column[A] {
     def apply(data: Any, columnDef: ColumnInfo): Try[A] = Try {
       //throw an exception if the data is null
 //      if(data == null) {
@@ -196,7 +196,7 @@ object Column {
         throw new NullableColumnException(columnDef.name)
       }
       ve.apply(data) getOrElse {
-        throw new IncompatibleColumnTypeException(data, columnDef.name, m.erasure)
+        throw new IncompatibleColumnTypeException(data, columnDef.name, m.runtimeClass)
       }
     }
   }
@@ -209,10 +209,10 @@ object Column {
   implicit val dateColumn = Column.notNull[Date]
 
   //This handles mapping columns to Option[_]
-  implicit def nullableColumn[A](implicit ve: ValueExtractor[A], m: ClassManifest[A]): Column[Option[A]] = new Column[Option[A]] {
+  implicit def nullableColumn[A](implicit ve: ValueExtractor[A], m: Manifest[A]): Column[Option[A]] = new Column[Option[A]] {
     def apply(data: Any, columnDef: ColumnInfo): Try[Option[A]] = Try {
       val extracted = ve(data) getOrElse {
-        throw new IncompatibleColumnTypeException(data, columnDef.name, m.erasure)
+        throw new IncompatibleColumnTypeException(data, columnDef.name, m.runtimeClass)
       }
       Option(extracted)
     }
