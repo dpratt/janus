@@ -121,7 +121,9 @@ private[janus] class JdbcPreparedStatement(ps: java.sql.PreparedStatement) exten
   import JdbcPreparedStatement._
 
   def execute(): Boolean = ps.execute()
-  def executeQuery: Stream[Row] = JdbcRow.convertResultSet(ps.executeQuery())
+  def executeQuery: Stream[Row] = {
+    JdbcRow.convertResultSet(ps.executeQuery())
+  }
   def executeUpdate(): Int = ps.executeUpdate()
 
   def addBatch() {

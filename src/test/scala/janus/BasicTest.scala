@@ -6,6 +6,8 @@ import org.scalatest.junit.JUnitRunner
 import concurrent.{Await, Future}
 import concurrent.duration._
 
+import scala.language.postfixOps
+
 import scala.concurrent.ExecutionContext.Implicits.global
 
 @RunWith(classOf[JUnitRunner])
@@ -18,7 +20,7 @@ class BasicTest extends FunSuite with TestDBSupport {
       val results = ps.executeQuery.map { row =>
         row[Int](0)
       }
-      expect(1) {
+      expectResult(1) {
         results.head
       }
     }
@@ -45,10 +47,10 @@ class BasicTest extends FunSuite with TestDBSupport {
       val results = session.executeQuery("select * from test where id = 2").map { row =>
         row[String](1)
       }
-      expect(1) {
+      expectResult(1) {
         results.size
       }
-      expect("Test 2") {
+      expectResult("Test 2") {
         results.head
       }
       results.force
@@ -63,7 +65,7 @@ class BasicTest extends FunSuite with TestDBSupport {
       val results = session.executeQuery("select count(*) from test").map { row =>
         row[Option[Long]](0)
       }.head
-      expect(Some(1)) {
+      expectResult(Some(1)) {
         results
       }
 
@@ -80,7 +82,7 @@ class BasicTest extends FunSuite with TestDBSupport {
       val newRowCount = session.executeQuery("select count(*) from test").map { row =>
         row[Option[Long]](0)
       }.head
-      expect(Some(1)) {
+      expectResult(Some(1)) {
         //should only be one row - the rows inserted above should have been rolled back
         newRowCount
       }
@@ -130,7 +132,7 @@ class BasicTest extends FunSuite with TestDBSupport {
               val rowCount = session.executeQuery("select count(*) from test").map { row =>
                 row[Int](0)
               }.head
-              expect(2) {
+              expectResult(2) {
                 rowCount
               }
               //throw an exception - this *shouldn't* roll back the transaction since we're nested
@@ -141,7 +143,7 @@ class BasicTest extends FunSuite with TestDBSupport {
           val rowCount = session.executeQuery("select count(*) from test").map { row =>
             row[Option[Long]](0)
           }
-          expect(Some(2)) {
+          expectResult(Some(2)) {
             rowCount.head
           }
           //throw another exception - this *should* roll it back
@@ -152,7 +154,7 @@ class BasicTest extends FunSuite with TestDBSupport {
       val rowCount = session.executeQuery("select count(*) from test").map { row =>
         row[Option[Long]](0)
       }
-      expect(Some(1)) {
+      expectResult(Some(1)) {
         rowCount.head
       }
     }
@@ -163,7 +165,7 @@ class BasicTest extends FunSuite with TestDBSupport {
       val rowCount = session.executeQuery("select count(*) from test").map { row =>
         row[Option[Long]](0)
       }
-      expect(Some(1)) {
+      expectResult(Some(1)) {
         rowCount.head
       }
     }
@@ -180,7 +182,7 @@ class BasicTest extends FunSuite with TestDBSupport {
         val results = session.executeQuery("select count(*) from test").map { row =>
           row[Option[Long]](0)
         }
-        expect(Some(2)) {
+        expectResult(Some(2)) {
           results.head
         }
         transaction.rollback()
@@ -189,7 +191,7 @@ class BasicTest extends FunSuite with TestDBSupport {
       val rowCount = session.executeQuery("select count(*) from test").map { row =>
         row[Option[Long]](0)
       }
-      expect(Some(1)) {
+      expectResult(Some(1)) {
         rowCount.head
       }
     }
@@ -217,10 +219,10 @@ class BasicTest extends FunSuite with TestDBSupport {
       val results = session.executeQuery("select * from test where id = 1").map { row =>
         ColumnByName(row[Long]("id"), row[String]("name"), row[Option[Long]]("score"))
       }
-      expect(1) {
+      expectResult(1) {
         results.size
       }
-      expect(ColumnByName(1, "Hello", Some(23))) {
+      expectResult(ColumnByName(1, "Hello", Some(23))) {
         results.head
       }
     }
@@ -234,18 +236,18 @@ class BasicTest extends FunSuite with TestDBSupport {
       session.executeSql("insert into orgs values (1, 'Test Org')")
 
       val results = session.executeQuery("select users.name as userLabel, users.*, orgs.* from users, orgs where orgs.id = users.org_id")
-      expect(1) {
+      expectResult(1) {
         results.size
       }
       val row = results.head
 
-      expect(1)(row[Long]("users.id"))
-      expect("Test User")(row[String]("users.name"))
-      expect("Test User")(row[String]("userLabel"))
-      expect(1)(row[Long]("users.org_id"))
+      expectResult(1)(row[Long]("users.id"))
+      expectResult("Test User")(row[String]("users.name"))
+      expectResult("Test User")(row[String]("userLabel"))
+      expectResult(1)(row[Long]("users.org_id"))
 
-      expect(1)(row[Long]("orgs.id"))
-      expect("Test Org")(row[String]("orgs.name"))
+      expectResult(1)(row[Long]("orgs.id"))
+      expectResult("Test Org")(row[String]("orgs.name"))
     }
   }
 

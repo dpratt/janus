@@ -5,7 +5,7 @@ import javax.sql.DataSource
 import org.slf4j.LoggerFactory
 
 import CloseableResource.withResource
-import concurrent.{ExecutionContext, Future}
+import scala.concurrent.{ExecutionContext, Future}
 
 object Database {
   def apply(ds: DataSource) = new JdbcDatabase(ds)
@@ -91,8 +91,8 @@ trait Session extends CloseableResource {
    * methods on Statement produce lazy Streams of results. If you wish to return/use any of these values outside of the
    * block you *MUST* map them to non-lazy strict collections. If you do not, undefined behavior will occur.
    */
-  def withPreparedStatement[T](query: String)(f: PreparedStatement => T): T = {
-    withResource(prepareStatement(query))(f)
+  def withPreparedStatement[T](query: String, returnGeneratedKeys: Boolean = false)(f: PreparedStatement => T): T = {
+    withResource(prepareStatement(query, returnGeneratedKeys))(f)
   }
 
   /**
@@ -110,7 +110,7 @@ trait Session extends CloseableResource {
    * Generate a PreparedStatement. NOTE - the caller of this method is responsible for closing the returned
    * PreparedStatement.
    */
-  def prepareStatement(query: String): PreparedStatement
+  def prepareStatement(query: String, returnGeneratedKeys: Boolean = false): PreparedStatement
 
   def statement(): Statement
 }
@@ -172,9 +172,13 @@ private[janus] class JdbcSession(val database: JdbcDatabase) extends Session {
    * Generate a PreparedStatement. NOTE - the caller of this method is responsible for closing the returned
    * PreparedStatement (when available).
    */
-  def prepareStatement(query: String): PreparedStatement  = {
+  def prepareStatement(query: String, returnGeneratedKeys: Boolean = false): PreparedStatement  = {
     log.debug("Creating new PreparedStatement - {}", query)
-    new JdbcPreparedStatement(conn.prepareStatement(query, java.sql.Statement.RETURN_GENERATED_KEYS))
+    if (returnGeneratedKeys) {
+      new JdbcPreparedStatement(conn.prepareStatement(query, java.sql.Statement.RETURN_GENERATED_KEYS))
+    } else {
+      new JdbcPreparedStatement(conn.prepareStatement(query))
+    }
   }
 
   def statement(): Statement = {
