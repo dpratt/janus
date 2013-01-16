@@ -2,8 +2,6 @@ package janus
 
 import org.scalatest._
 import javax.sql.DataSource
-import org.h2.jdbcx.JdbcConnectionPool
-import net.sf.log4jdbc.Log4jdbcProxyDataSource
 import com.jolbox.bonecp.BoneCPDataSource
 
 trait TestDBSupport extends BeforeAndAfterEach {

@@ -1,8 +1,6 @@
 package janus
 
 import org.scalatest.FunSuite
-import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
 import concurrent.{Await, Future}
 import concurrent.duration._
 
@@ -10,7 +8,6 @@ import scala.language.postfixOps
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
-@RunWith(classOf[JUnitRunner])
 class BasicTest extends FunSuite with TestDBSupport {
 
   test("Basic query test") {
@@ -204,7 +201,7 @@ class BasicTest extends FunSuite with TestDBSupport {
       session.executeSql("insert into test (id, name) values (3, 'test name')")
       intercept[NullableColumnException] {
         session.executeQuery("select * from test where id = 3").map { row =>
-          val value = row[Long]("score")
+          row[Long]("score")
         }
       }
     }
