@@ -26,6 +26,11 @@ trait Statement extends CloseableResource {
    * for closing this ResultSet when done with it.
    */
   def generatedKeys: Stream[Row]
+
+  /**
+   * Get the update count from the most recently executed statement.
+   */
+  def updateCount: Int
 }
 
 trait PreparedStatement extends CloseableResource {
@@ -80,6 +85,11 @@ trait PreparedStatement extends CloseableResource {
    */
   def generatedKeys: Stream[Row]
 
+  /**
+   * Get the update count from the most recently executed statement.
+   */
+  def updateCount: Int
+
 }
 
 private[janus] class JdbcStatement(stmt: java.sql.Statement) extends Statement {
@@ -110,6 +120,8 @@ private[janus] class JdbcStatement(stmt: java.sql.Statement) extends Statement {
   }
 
   def generatedKeys = JdbcRow.convertResultSet(stmt.getGeneratedKeys)
+
+  def updateCount = stmt.getUpdateCount
 }
 
 private[janus] object JdbcStatement {
@@ -162,6 +174,8 @@ private[janus] class JdbcPreparedStatement(ps: java.sql.PreparedStatement) exten
   }
 
   def generatedKeys: Stream[Row] = JdbcRow.convertResultSet(ps.getGeneratedKeys)
+
+  def updateCount: Int = ps.getUpdateCount
 
   def close() {
     log.debug("Closing prepared statement - {}", ps.toString)
