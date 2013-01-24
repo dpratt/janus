@@ -214,6 +214,7 @@ object Column {
   implicit val doubleColumn = Column.notNull[Double]
   implicit val booleanColumn = Column.notNull[Boolean]
   implicit val dateColumn = Column.notNull[Date]
+  implicit val dateTimeColumn = Column.notNull[DateTime]
 
   //This handles mapping columns to Option[_]
   implicit def nullableColumn[A](implicit ve: ValueExtractor[A], m: Manifest[A]): Column[Option[A]] = new Column[Option[A]] {
