@@ -3,6 +3,7 @@ package janus
 import org.slf4j.LoggerFactory
 import java.sql
 import java.util.Date
+import org.joda.time.DateTime
 
 trait Statement extends CloseableResource {
 
@@ -165,6 +166,7 @@ private[janus] class JdbcPreparedStatement(ps: java.sql.PreparedStatement) exten
       case d: Double => ps.setDouble(realIndex, d)
       case b: Boolean => ps.setBoolean(realIndex, b)
       case d: Date => ps.setDate(realIndex, new sql.Date(d.getTime))
+      case d: DateTime => ps.setDate(realIndex, new sql.Date(d.toDate.getTime))
       case value: Any => {
         log.warn("Unknown type.")
         ps.setObject(realIndex, value)

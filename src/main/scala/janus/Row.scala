@@ -1,10 +1,10 @@
 package janus
 
-import java.sql
-import sql.ResultSetMetaData
+import java.sql.ResultSetMetaData
 import org.slf4j.LoggerFactory
 import java.util.Date
 import util.Try
+import org.joda.time.DateTime
 
 case class ColumnInfo(name: String, alias: String, nullable: Boolean, valueClassName: String) {
   val shortName = name.split(".").lastOption.getOrElse(name)
@@ -30,14 +30,15 @@ class Metadata(val columns: IndexedSeq[ColumnInfo]) {
   lazy val availableColumns: Seq[String] = columnIndexMap.keys.toSeq
 
   def get(name: String): Try[ColumnInfo] = {
-    indexForColumn(name.toUpperCase) map { index =>
-      columns(index)
+    indexForColumn(name.toUpperCase) map {
+      index =>
+        columns(index)
     }
   }
 
   def get(index: Int): Try[ColumnInfo] = {
     Try {
-      if(index < 0 || index >= columns.size) {
+      if (index < 0 || index >= columns.size) {
         throw new UnknownColumnException(index, columns.size)
       }
       columns(index)
@@ -87,18 +88,20 @@ trait Row {
   lazy val asMap = metadata.columns.map(_.name).zip(asList).toMap
 
   private def get[A](index: Int)(implicit extractor: Column[A]): Try[A] = {
-    metadata.get(index).flatMap { columnInfo =>
-      val rawValue = data(index)
-      extractor(rawValue, columnInfo)
+    metadata.get(index).flatMap {
+      columnInfo =>
+        val rawValue = data(index)
+        extractor(rawValue, columnInfo)
     }
   }
 
   /**
    * Retrieve a value from this row.
    */
-  def apply[A : Column](columnName: String): A = {
-    metadata.indexForColumn(columnName).flatMap { index =>
-      get(index)
+  def apply[A: Column](columnName: String): A = {
+    metadata.indexForColumn(columnName).flatMap {
+      index =>
+        get(index)
     }.get
   }
 
@@ -107,7 +110,7 @@ trait Row {
    * @param index The index of the column in the result set. NOTE - unlike JDBC, this is *zero based*.
    * @return
    */
-  def apply[A : Column](index: Int): A = {
+  def apply[A: Column](index: Int): A = {
     get(index).get
   }
 
@@ -160,6 +163,10 @@ object ValueExtractor {
     case d: Date => d
   }
 
+  implicit val dateTimeExtractor = ValueExtractor {
+    case d: Date => new DateTime(d)
+  }
+
 }
 
 
@@ -181,9 +188,9 @@ object Column {
   def notNull[A](implicit ve: ValueExtractor[A], m: Manifest[A]): Column[A] = new Column[A] {
     def apply(data: Any, columnDef: ColumnInfo): Try[A] = Try {
       //throw an exception if the data is null
-//      if(data == null) {
-//        throw new NullableColumnException(columnDef.name)
-//      }
+      //      if(data == null) {
+      //        throw new NullableColumnException(columnDef.name)
+      //      }
       //alternatively, we can look at the resultset metadata and see if the column is nullable
       //This is a bit more strict, but makes the API a bit more unwieldy - for example, a
       //"SELECT count(*) from foo" query returns the first column as nullable, even though it isn't
@@ -192,7 +199,7 @@ object Column {
       //until a null value is (probably accidentally) inserted into the DB. Plus, this catches things at
       //unit test time rather than production. There is a tradeoff with verbosity in the API (e.g. aggregates
       //MUST be mapped to Option) but that's a small price to pay.
-      if(columnDef.nullable) {
+      if (columnDef.nullable) {
         throw new NullableColumnException(columnDef.name)
       }
       ve.apply(data) getOrElse {
@@ -222,7 +229,7 @@ object Column {
 
 class NullableColumnException(columnName: String) extends RuntimeException("A nullable column named '" + columnName + "' was mapped to a scalar type. You must map this to an Option type.")
 
-private [janus] case class JdbcRow(protected val data: IndexedSeq[Any], metadata: Metadata) extends Row
+private[janus] case class JdbcRow(protected val data: IndexedSeq[Any], metadata: Metadata) extends Row
 
 private[janus] object JdbcRow {
 
