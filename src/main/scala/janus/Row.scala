@@ -1,6 +1,6 @@
 package janus
 
-import java.sql.ResultSetMetaData
+import java.sql.{ResultSet, ResultSetMetaData}
 import org.slf4j.LoggerFactory
 import java.util.Date
 import util.Try
@@ -52,7 +52,7 @@ class Metadata(val columns: IndexedSeq[ColumnInfo]) {
   }
 }
 
-private object Metadata {
+private[janus] object Metadata {
   def apply(rs: java.sql.ResultSet): Metadata = {
     val metadata = rs.getMetaData
     val columnCount = metadata.getColumnCount
@@ -99,6 +99,13 @@ trait Row {
    * Retrieve a value from this row.
    */
   def apply[A: Column](columnName: String): A = {
+    value(columnName)
+  }
+
+  /**
+   * Retrieve a value from this row.
+   */
+  def value[A: Column](columnName: String): A = {
     metadata.indexForColumn(columnName).flatMap {
       index =>
         get(index)
@@ -111,6 +118,14 @@ trait Row {
    * @return
    */
   def apply[A: Column](index: Int): A = {
+    value(index)
+  }
+
+  /**
+   * Retrieve a value from this row.
+   * @param index The index of the column in the result set. NOTE - unlike JDBC, this is *zero based*.
+   */
+  def value[A: Column](index: Int): A = {
     get(index).get
   }
 
@@ -231,36 +246,3 @@ object Column {
 class NullableColumnException(columnName: String) extends RuntimeException("A nullable column named '" + columnName + "' was mapped to a scalar type. You must map this to an Option type.")
 
 private[janus] case class JdbcRow(protected val data: IndexedSeq[Any], metadata: Metadata) extends Row
-
-private[janus] object JdbcRow {
-
-  def convertResultSet(resultSet: java.sql.ResultSet, closeStatementWhenComplete: Boolean = false): Stream[Row] = {
-
-    val meta = Metadata(resultSet)
-    val columnRange = 1 to meta.columns.size
-    def data(rs: java.sql.ResultSet) = {
-      for (i <- columnRange) yield rs.getObject(i)
-    }
-
-    def toStream(rs: java.sql.ResultSet): Stream[JdbcRow] = {
-      if (!rs.next()) {
-        if (closeStatementWhenComplete) {
-          val stmt = rs.getStatement
-          if (stmt != null) {
-            //should automatically close the rs as well
-            stmt.close()
-          }
-        } else {
-          rs.close()
-        }
-        Stream.empty
-      } else {
-        JdbcRow(data(rs), meta) #:: toStream(rs)
-      }
-    }
-
-    toStream(resultSet)
-  }
-
-
-}
