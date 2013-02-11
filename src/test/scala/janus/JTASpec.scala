@@ -15,7 +15,7 @@ class JTASpec extends FlatSpec {
   "A database" should "properly participate in an XA tranasaction with a single datasource" in {
     val ds = emptyDataSource("first-ds")
     val txManager = transactionManager
-    val db = Database(ds, new JtaTransactionManager(txManager, txManager))
+    val db = new SpringDatabase(ds, new JtaTransactionManager(txManager, txManager))
     try {
       db.withSession { session =>
         session.executeQuery("select count(*) from test") { rs =>
@@ -52,7 +52,7 @@ class JTASpec extends FlatSpec {
     val unmanagedDs = emptyDataSource("first-ds")
     val managedDs = emptyDataSource("second-ds")
     val txManager = transactionManager
-    val managedDatabase = Database(unmanagedDs, new JtaTransactionManager(txManager, txManager))
+    val managedDatabase = new SpringDatabase(unmanagedDs, new JtaTransactionManager(txManager, txManager))
     try {
 
       def validateUnmanaged(expectedCount: Int) {

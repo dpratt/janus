@@ -12,12 +12,12 @@ class DatabaseSpec extends FlatSpec {
 
   def basicDatabase = {
     val ds = emptyDataSource()
-    Database(ds)
+    new JdbcDatabase(ds)
   }
 
   def springDatabase = {
     val ds = emptyDataSource()
-    Database(ds, new DataSourceTransactionManager(ds))
+    new SpringDatabase(ds, new DataSourceTransactionManager(ds))
   }
 
   "A Database based on a simple DataSource" should behave like basicDatabaseBehavior(basicDatabase)

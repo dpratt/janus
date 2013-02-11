@@ -7,22 +7,6 @@ import scala.concurrent._
 import org.springframework.transaction.PlatformTransactionManager
 
 object Database {
-  /**
-   * Create a new Database. Sessions created by this database will manage their own transaction semantics.
-   *
-   * Note - if this datasource is synchronized to a Spring PlatformTransactionManager, usage of a Database returned from
-   * this method will interfere with and likely cause undefined behavior with Spring managed transactions.
-   */
-  def apply(ds: DataSource) = new JdbcDatabase(ds)
-
-  /**
-   * Create a new Database that will create and participate in Spring managed transactions.
-   *
-   * Note - the supplied DataSource *MUST* be synchronized by the supplied PlatformTransactionManager,
-   * or undefined (and likely destructive) behavior will occur.
-   */
-  def apply(ds: DataSource, txManager: PlatformTransactionManager) = new SpringDatabase(ds, txManager)
-
   private val logger = LoggerFactory.getLogger(classOf[Database])
 }
 
@@ -61,10 +45,21 @@ trait Database {
 
 }
 
-private[janus] class JdbcDatabase(ds: DataSource) extends Database {
+/**
+ * A plain Database implementation that does it's own transaction management.
+ *
+ */
+class JdbcDatabase(ds: DataSource) extends Database {
   def createSession: Session = new SimpleSession(ds)
 }
 
-private[janus] class SpringDatabase(ds: DataSource, txManager: PlatformTransactionManager) extends Database {
+/**
+ * A Database that can participate in Spring managed transactions. This Database will delegate all transaction
+ * semantics to Spring, and is capable of creating and participating in a thread-bound transaction context.
+ *
+ * IMPORTANT - The supplied DataSource *MUST* be synchronized by the provided PlatformTransactionManager. If it is not,
+ * undefined (and likely destructive) behavior will occur.
+ */
+class SpringDatabase(ds: DataSource, txManager: PlatformTransactionManager) extends Database {
   def createSession: Session = new SpringSession(ds, txManager)
 }
