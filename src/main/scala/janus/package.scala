@@ -1,3 +1,4 @@
+import collection.mutable.ArrayBuffer
 import concurrent.ExecutionContext
 import java.sql.ResultSet
 import org.slf4j.LoggerFactory
@@ -35,16 +36,35 @@ package object janus {
 
   private val log = LoggerFactory.getLogger("janus")
 
-  private[janus] def withResultSet[A](rs: ResultSet, f: Traversable[Row] => A): A = {
-    import JdbcRow._
+  private[janus] def copyResultSet(resultSet: java.sql.ResultSet): Traversable[Row] = {
+
+    val meta = Metadata(resultSet)
+    val columnRange = 1 to meta.columns.size
+    def data(rs: java.sql.ResultSet) = {
+      for (i <- columnRange) yield rs.getObject(i)
+    }
+
+    val rows: ArrayBuffer[Row] = new ArrayBuffer[Row]
     try {
-      f(convertResultSet(rs))
+      while(resultSet.next()) {
+        rows.append(JdbcRow(data(resultSet), meta))
+      }
+      rows
+    } finally {
+      resultSet.close()
+    }
+  }
+
+  private[janus] def mapResultSet[A](rs: ResultSet, f: Traversable[Row] => A) = {
+    try {
+      val wrapped = convertResultSet(rs)
+      f(wrapped)
     } finally {
       rs.close()
     }
   }
 
-  def convertResultSet(resultSet: java.sql.ResultSet): Traversable[Row] = {
+  private def convertResultSet(resultSet: java.sql.ResultSet): Traversable[Row] = {
 
     val meta = Metadata(resultSet)
     val columnRange = 1 to meta.columns.size
@@ -65,5 +85,4 @@ package object janus {
       }
     }
   }
-
 }
