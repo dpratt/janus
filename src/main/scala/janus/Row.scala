@@ -169,6 +169,11 @@ object ValueExtractor {
     case d: Double => d
   }
 
+  implicit val bigDecimalExtractor = ValueExtractor {
+    case bd: BigDecimal => bd
+    case bd: java.math.BigDecimal => BigDecimal(bd)
+  }
+
   implicit val booleanExtractor = ValueExtractor {
     //could also match strings here, but would rather bind to what the DB returns
     case b: Boolean => b
@@ -227,6 +232,7 @@ object Column {
   implicit val intColumn = Column.notNull[Int]
   implicit val longColumn = Column.notNull[Long]
   implicit val doubleColumn = Column.notNull[Double]
+  implicit val bigDecimalColumn = Column.notNull[BigDecimal]
   implicit val booleanColumn = Column.notNull[Boolean]
   implicit val dateColumn = Column.notNull[Date]
   implicit val dateTimeColumn = Column.notNull[DateTime]

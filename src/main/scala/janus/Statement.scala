@@ -148,6 +148,8 @@ private[janus] class JdbcPreparedStatement(ps: java.sql.PreparedStatement) exten
       case i: Int => ps.setInt(realIndex, i)
       case l: Long => ps.setLong(realIndex, l)
       case d: Double => ps.setDouble(realIndex, d)
+      case bd: BigDecimal => ps.setBigDecimal(realIndex, bd.bigDecimal)
+      case bd: java.math.BigDecimal => ps.setBigDecimal(realIndex, bd)
       case b: Boolean => ps.setBoolean(realIndex, b)
       case d: Date => ps.setDate(realIndex, new sql.Date(d.getTime))
       case d: DateTime => ps.setDate(realIndex, new sql.Date(d.toDate.getTime))
