@@ -18,11 +18,8 @@ class JTASpec extends FlatSpec {
     val db = new SpringDatabase(ds, new JtaTransactionManager(txManager, txManager))
     try {
       db.withSession { session =>
-        session.executeQuery("select count(*) from test") { rs =>
-          expectResult(Some(1)) {
-            rs.head.value[Option[Long]](0)
-          }
-        }
+        val rows = session.executeQuery("select count(*) from test")
+        assert(1 === rows.head(0).as[Long])
 
         intercept[RuntimeException] {
           session.withTransaction { trans =>
@@ -34,12 +31,9 @@ class JTASpec extends FlatSpec {
 
       //create a new session to ensure isolation from the above operations
       db.withSession { session =>
-        session.executeQuery("select count(*) from test") { rs =>
+        val rows = session.executeQuery("select count(*) from test")
+        assert(1 === rows.head(0).as[Long])
         //should only be one row - the rows inserted above should have been rolled back
-          expectResult(Some(1)) {
-            rs.head.value[Option[Long]](0)
-          }
-        }
       }
     } finally {
       ds.close()
@@ -60,7 +54,7 @@ class JTASpec extends FlatSpec {
         val unmanagedConn = DataSourceUtils.getConnection(unmanagedDs)
         val unmanagedStmt = unmanagedConn.createStatement()
         val rs: ResultSet = unmanagedStmt.executeQuery("select count(*) from test")
-        expectResult(expectedCount) {
+        assertResult(expectedCount) {
           rs.next()
           rs.getInt(1)
         }
@@ -71,22 +65,16 @@ class JTASpec extends FlatSpec {
 
       def validateManaged(expectedCount: Int) {
         managedDatabase.withSession { session =>
-          session.executeQuery("select count(*) from test") { rs =>
-            expectResult(Some(expectedCount)) {
-              rs.head[Option[Long]](0)
-            }
-          }
+          val rows = session.executeQuery("select count(*) from test")
+          assert(expectedCount === rows.head(0).as[Long])
         }
       }
 
       def validateUnsynchronized(expectedCount: Int) {
         //query in a different thread (and thus not participate in an active transaction)
         val validF = managedDatabase.withDetachedSession { session =>
-          session.executeQuery("select count(*) from test") { rs =>
-            expectResult(Some(expectedCount)) {
-              rs.head[Option[Long]](0)
-            }
-          }
+          val rows = session.executeQuery("select count(*) from test")
+          assert(expectedCount === rows.head(0).as[Long])
         }
         Await.result(validF, Duration(30, TimeUnit.SECONDS))
 

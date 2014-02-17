@@ -29,11 +29,12 @@ class DatabaseSpec extends FlatSpec {
       val db = newDatabase
       db.withSession { session =>
         session.withPreparedStatement("select * from test") { ps =>
-          ps.executeQuery { rs =>
-            expectResult(1) {
-              rs.head.value[Int](0)
-            }
-          }
+          val rows = ps.executeQuery()
+          assert(rows.size == 1)
+          val row = rows.head
+          assert(1 === row.value("id").as[Int])
+          assert("Hello" === row.value(1).as[String])
+          assert(23 == row.value("score").as[Long])
         }
       }
     }
@@ -45,8 +46,8 @@ class DatabaseSpec extends FlatSpec {
         session.withTransaction { transaction =>
           //insert a value
           session.withPreparedStatement("insert into test (id, name) VALUES (?,?)") { ps =>
-            ps.setParam(0, 2)
-            ps.setParam(1, "Test 2")
+            ps.setParam(0, DbValue.fromAny(2))
+            ps.setParam(1, DbValue.fromAny("Test 2"))
             ps.executeUpdate()
           }
         }
@@ -54,14 +55,9 @@ class DatabaseSpec extends FlatSpec {
 
       db.withSession { session =>
         //query for this value
-        session.executeQuery("select * from test where id = 2") { rs =>
-          expectResult(1) {
-            rs.size
-          }
-          expectResult("Test 2") {
-            rs.head.value[String](1)
-          }
-        }
+        val rows = session.executeQuery("select * from test where id = 2")
+        assert(1 === rows.size)
+        assert("Test 2" === rows.head(1).as[String])
       }
     }
 
@@ -69,11 +65,8 @@ class DatabaseSpec extends FlatSpec {
       val db = newDatabase
 
       db.withSession { session =>
-        session.executeQuery("select count(*) from test") { rs =>
-          expectResult(Some(1)) {
-            rs.head.value[Option[Long]](0)
-          }
-        }
+        val rows = session.executeQuery("select count(*) from test")
+        assert(1 === rows.head(0).as[Long])
 
         intercept[RuntimeException] {
           session.withTransaction { trans =>
@@ -85,12 +78,9 @@ class DatabaseSpec extends FlatSpec {
 
       //create a new session to ensure isolation from the above operations
       db.withSession { session =>
-        session.executeQuery("select count(*) from test") { rs =>
+        val rows = session.executeQuery("select count(*) from test")
         //should only be one row - the rows inserted above should have been rolled back
-          expectResult(Some(1)) {
-            rs.head.value[Option[Long]](0)
-          }
-        }
+        assert(1 === rows.head(0).as[Long])
       }
     }
 
@@ -103,41 +93,29 @@ class DatabaseSpec extends FlatSpec {
             session.executeSql("insert into test (id, name) VALUES (3, 'Test 3')")
             intercept[RuntimeException] {
               session.withTransaction { nested =>
-                session.executeQuery("select count(*) from test") { rs =>
-                  expectResult(2) {
-                    rs.head[Int](0)
-                  }
-                }
+                val rows = session.executeQuery("select count(*) from test")
+                assert(2 === rows.head(0).as[Int])
                 //throw an exception - this *shouldn't* roll back the transaction since we're nested
                 throw new RuntimeException("This is a sample")
               }
             }
             //should still be there
-            session.executeQuery("select count(*) from test") { rs =>
-              expectResult(Some(2)) {
-                rs.head[Option[Long]](0)
-              }
-            }
+            val rows = session.executeQuery("select count(*) from test")
+            assert(2 == rows.head(0).as[Int])
             //throw another exception - this *should* roll it back
             throw new RuntimeException("This is a second exception")
           }
         }
         //row should be gone
-        session.executeQuery("select count(*) from test") { rs =>
-          expectResult(Some(1)) {
-            rs.head[Option[Long]](0)
-          }
-        }
+        val rows = session.executeQuery("select count(*) from test")
+        assert(1 === rows.head(0).as[Long])
       }
 
       //more checks - ensure that it doesn't show up in another session either
       db.withSession { session =>
       //row should be gone
-        session.executeQuery("select count(*) from test") { rs =>
-          expectResult(Some(1)) {
-            rs.head[Option[Long]](0)
-          }
-        }
+        val rows = session.executeQuery("select count(*) from test")
+        assert(1 === rows.head(0).as[Long])
       }
     }
 
@@ -148,32 +126,13 @@ class DatabaseSpec extends FlatSpec {
         session.withTransaction { transaction =>
           session.executeSql("insert into test (id, name) VALUES (3, 'Test 3')")
           //should still be there
-          session.executeQuery("select count(*) from test") { rs =>
-            expectResult(Some(2)) {
-              rs.head[Option[Long]](0)
-            }
-          }
+          val rows = session.executeQuery("select count(*) from test")
+          assert(2 === rows.head(0).as[Long])
           transaction.setRollback()
         }
         //row should be gone, due to manual rollback
-        session.executeQuery("select count(*) from test") { rs =>
-          expectResult(Some(1)) {
-            rs.head[Option[Long]](0)
-          }
-        }
-      }
-    }
-
-    it should "properly detect nullable columns" in {
-      val db = newDatabase
-
-      db.withSession { session =>
-        session.executeSql("insert into test (id, name) values (3, 'test name')")
-        intercept[NullableColumnException] {
-          session.executeQuery("select * from test where id = 3") { rs =>
-            rs.head[Long]("score")
-          }
-        }
+        val rows = session.executeQuery("select count(*) from test")
+        assert(1 === rows.head(0).as[Long])
       }
     }
 
@@ -183,12 +142,9 @@ class DatabaseSpec extends FlatSpec {
       val db = newDatabase
 
       db.withSession { session =>
-        val result = session.executeQuery("select * from test where id = 1") { rs =>
-          val row = rs.head
-          ColumnByName(row[Long]("id"), row[String]("name"), row[Option[Long]]("score"))
-        }
-        expectResult(ColumnByName(1, "Hello", Some(23))) {
-          result
+        val row = session.executeQuery("select * from test where id = 1").head
+        assertResult(ColumnByName(1, "Hello", Some(23))) {
+          ColumnByName(row("id").as[Int], row("name").as[String], row("score").as[Option[Long]])
         }
       }
     }
@@ -200,20 +156,16 @@ class DatabaseSpec extends FlatSpec {
         session.executeSql("insert into users values (1, 'Test User', 1)")
         session.executeSql("insert into orgs values (1, 'Test Org')")
 
-        session.executeQuery("select users.name as userLabel, users.*, orgs.* from users, orgs where orgs.id = users.org_id") { rs =>
-          expectResult(1) {
-            rs.size
-          }
-          val row = rs.head
+        val rows = session.executeQuery("select users.name as userLabel, users.*, orgs.* from users, orgs where orgs.id = users.org_id")
+        assert(1 === rows.size)
+        val row = rows.head
+        assert(1 === row("users.id").as[Int])
+        assert("Test User" === row("users.name").as[String])
+        assert("Test User" === row("userLabel").as[String])
+        assert(1 === row("users.org_id").as[Int])
 
-          expectResult(1)(row[Long]("users.id"))
-          expectResult("Test User")(row[String]("users.name"))
-          expectResult("Test User")(row[String]("userLabel"))
-          expectResult(1)(row[Long]("users.org_id"))
-
-          expectResult(1)(row[Long]("orgs.id"))
-          expectResult("Test Org")(row[String]("orgs.name"))
-        }
+        assert(1 === row("orgs.id").as[Int])
+        assert("Test Org" === row("orgs.name").as[String])
       }
     }
   }

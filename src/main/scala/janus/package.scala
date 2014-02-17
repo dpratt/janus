@@ -36,53 +36,23 @@ package object janus {
 
   private val log = LoggerFactory.getLogger("janus")
 
-  private[janus] def copyResultSet(resultSet: java.sql.ResultSet): Traversable[Row] = {
+  private[janus] def copyResultSet(resultSet: java.sql.ResultSet): Seq[Row] = {
 
     val meta = Metadata(resultSet)
     val columnRange = 1 to meta.columns.size
-    def data(rs: java.sql.ResultSet) = {
+    def data(rs: java.sql.ResultSet): IndexedSeq[Any] = {
       for (i <- columnRange) yield rs.getObject(i)
     }
 
-    val rows: ArrayBuffer[Row] = new ArrayBuffer[Row]
+    //val rows: ArrayBuffer[Row] = new ArrayBuffer[Row]
+    val rows = IndexedSeq.newBuilder[Row]
     try {
       while(resultSet.next()) {
-        rows.append(JdbcRow(data(resultSet), meta))
+        rows += Row(meta, data(resultSet))
       }
-      rows
+      rows.result()
     } finally {
       resultSet.close()
-    }
-  }
-
-  private[janus] def mapResultSet[A](rs: ResultSet, f: Traversable[Row] => A) = {
-    try {
-      val wrapped = convertResultSet(rs)
-      f(wrapped)
-    } finally {
-      rs.close()
-    }
-  }
-
-  private def convertResultSet(resultSet: java.sql.ResultSet): Traversable[Row] = {
-
-    val meta = Metadata(resultSet)
-    val columnRange = 1 to meta.columns.size
-    def data(rs: java.sql.ResultSet) = {
-      for (i <- columnRange) yield rs.getObject(i)
-    }
-
-    new Traversable[Row] {
-      def foreach[U](f: Row => U) {
-        if (resultSet.getType != ResultSet.TYPE_FORWARD_ONLY) {
-          resultSet.beforeFirst()
-        } else {
-          log.warn("Cannot reset position of ResultSet. Repeat enumeration of rows not supported.")
-        }
-        while (resultSet.next()) {
-          f(JdbcRow(data(resultSet), meta))
-        }
-      }
     }
   }
 }

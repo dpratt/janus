@@ -7,6 +7,7 @@ import org.slf4j.LoggerFactory
 import util.control.NonFatal
 import org.springframework.transaction.{TransactionStatus, TransactionDefinition, PlatformTransactionManager}
 import org.springframework.transaction.support.DefaultTransactionDefinition
+import com.typesafe.scalalogging.slf4j.Logging
 
 /**
  * A Session defines a concrete set of interactions with the database. On the highest level, they can be thought of
@@ -32,7 +33,7 @@ trait Session {
   /**
    * A shortcut method for executing a query.
    */
-  def executeQuery[A](query: String)(f: Traversable[Row] => A): A
+  def executeQuery(query: String): Seq[Row]
 
   /**
    * Allocate (and automatically reclaim) a PreparedStatement. Note - you must fully use/consume any
@@ -57,16 +58,15 @@ trait Session {
   def close()
 }
 
-private[janus] abstract class JdbcSessionBase(ds: DataSource) extends Session {
+private[janus] abstract class JdbcSessionBase extends Session with Logging {
 
-  import JdbcSessionBase._
 
   /**
    * A shortcut method for executing a query.
    */
-  def executeQuery[A](query: String)(f: Traversable[Row] => A): A = {
+  def executeQuery(query: String): Seq[Row] = {
     withStatement { stmt =>
-      stmt.executeQuery(query)(f)
+      stmt.executeQuery(query)
     }
   }
 
@@ -97,7 +97,7 @@ private[janus] abstract class JdbcSessionBase(ds: DataSource) extends Session {
   protected def withConnection[A](f: Connection => A): A
 
   private def createPreparedStatement(c: Connection, query: String, returnGeneratedKeys: Boolean = false): java.sql.PreparedStatement = {
-    log.debug("Creating new PreparedStatement - {}", query)
+    logger.debug("Creating new PreparedStatement - {}", query)
 
     val stmt = if (returnGeneratedKeys) {
       c.prepareStatement(query, java.sql.Statement.RETURN_GENERATED_KEYS)
@@ -114,23 +114,17 @@ private[janus] abstract class JdbcSessionBase(ds: DataSource) extends Session {
 
 }
 
-private[janus] object JdbcSessionBase {
-  val log = LoggerFactory.getLogger(classOf[JdbcSessionBase])
-}
-
 //used when we do not have access to a PlatformTransactionManager
 //this class manages it's own transactions
 //NOTE - This class will completely and utterly mess up an existing
 //Spring managed transaction. DO NOT USE THIS CLASS IF YOUR DATASOURCE IS SYNCHRONIZED
 //WITH SPRING. You have been warned.
-private[janus] class SimpleSession(ds: DataSource) extends JdbcSessionBase(ds) {
+private[janus] class SimpleSession(conn: Connection) extends JdbcSessionBase {
 
   import SimpleSession._
 
   private var currentTransaction: JdbcTransaction = null
   private var resetAutoCommit = false
-
-  private val conn = ds.getConnection
 
   /**
    * Clean up
@@ -167,11 +161,10 @@ private[janus] class SimpleSession(ds: DataSource) extends JdbcSessionBase(ds) {
       try {
         f(currentTransaction)
       } catch {
-        case NonFatal(e) => {
+        case NonFatal(e) =>
           log.debug("Error in transaction. Setting rollback.")
           currentTransaction.setRollback()
           throw e
-        }
       } finally {
         if (currentTransaction.shouldRollback) {
           conn.rollback()
@@ -195,7 +188,7 @@ object SimpleSession {
   val log = LoggerFactory.getLogger(classOf[SimpleSession])
 }
 
-private[janus] class SpringSession(ds: DataSource, txManager: PlatformTransactionManager) extends JdbcSessionBase(ds) {
+private[janus] class SpringSession(ds: DataSource, txManager: PlatformTransactionManager) extends JdbcSessionBase {
 
   import SpringSession._
 
@@ -231,10 +224,9 @@ private[janus] class SpringSession(ds: DataSource, txManager: PlatformTransactio
     try {
       txManager.rollback(tx)
     } catch {
-      case NonFatal(e) => {
+      case NonFatal(e) =>
         log.error("Exception during rollback masked real exception.", t)
         throw e
-      }
     }
   }
 

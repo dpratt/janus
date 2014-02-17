@@ -35,9 +35,7 @@ trait Database {
   def withDetachedSession[T](f: Session => T): Future[T] = {
     logger.debug("Creating new detached session.")
     future {
-      blocking {
-        withSession(f)
-      }
+      withSession(f)
     }
   }
 
@@ -50,7 +48,7 @@ trait Database {
  *
  */
 class JdbcDatabase(ds: DataSource) extends Database {
-  def createSession: Session = new SimpleSession(ds)
+  def createSession: Session = new SimpleSession(ds.getConnection)
 }
 
 /**
