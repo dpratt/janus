@@ -1,9 +1,5 @@
 package janus
 
-import org.slf4j.LoggerFactory
-import java.sql
-import java.util.Date
-import org.joda.time.DateTime
 import com.typesafe.scalalogging.slf4j.Logging
 
 trait Statement {
@@ -135,12 +131,13 @@ private[janus] class JdbcPreparedStatement(ps: java.sql.PreparedStatement) exten
       case DbInt(x) => ps.setInt(realIndex, x)
       case DbLong(x) => ps.setLong(realIndex, x)
       case DbDouble(x) => ps.setDouble(realIndex, x)
-      case DbDate(x) => ps.setDate(realIndex, new sql.Date(x.getMillis))
+      case DbDate(x) => ps.setDate(realIndex, new java.sql.Date(x.getMillis))
       case DbBoolean(x) => ps.setBoolean(realIndex, x)
       case DbNull => ps.setObject(realIndex, null)
       case DbUnknown(x) =>
         logger.warn("Warning - cannot directly convert value {} - using setObject.", x.toString)
         ps.setObject(realIndex, x)
+      case x: DbUndefined => throw new IllegalArgumentException("Cannot use DbUndefined to set a column value.")
       case x: Row => throw new IllegalArgumentException("Cannot set a Row value into a column.")
     }
   }

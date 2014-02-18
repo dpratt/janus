@@ -18,7 +18,7 @@
         <scala.major.version>2.10</scala.major.version>
         <scala.minor.version>3</scala.minor.version>
         <scala.version>${scala.major.version}.${scala.minor.version}</scala.version>
-        <slf4j.version>1.7.5</slf4j.version>
+        <slf4j.version>1.7.6</slf4j.version>
 
         <!-- override these in your local settings.xml -->
         <release.repo.id>UNDEFINED</release.repo.id>
@@ -53,7 +53,7 @@
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
-            <version>1.7.6</version>
+            <version>${slf4j.version}</version>
         </dependency>
 
         <dependency>
@@ -68,11 +68,11 @@
             <version>${play.version}</version>
         </dependency>
 
-        <dependency>
-            <groupId>com.typesafe.play</groupId>
-            <artifactId>play-json_${scala.major.version}</artifactId>
-            <version>${play.version}</version>
-        </dependency>
+        <!--<dependency>-->
+            <!--<groupId>com.typesafe.play</groupId>-->
+            <!--<artifactId>play-json_${scala.major.version}</artifactId>-->
+            <!--<version>${play.version}</version>-->
+        <!--</dependency>-->
 
         <dependency>
             <groupId>com.jolbox</groupId>
@@ -92,6 +92,13 @@
             <groupId>joda-time</groupId>
             <artifactId>joda-time</artifactId>
             <version>2.3</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.joda</groupId>
+            <artifactId>joda-convert</artifactId>
+            <version>1.5</version>
+            <scope>provided</scope>
         </dependency>
 
         <dependency>
@@ -122,7 +129,6 @@
             <version>3.2.1.RELEASE</version>
             <scope>test</scope>
         </dependency>
-
 
         <dependency>
             <groupId>ch.qos.logback</groupId>

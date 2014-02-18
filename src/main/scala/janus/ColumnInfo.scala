@@ -1,6 +1,7 @@
 package janus
 
 import java.sql.ResultSetMetaData
+import scala.util.Try
 
 case class ColumnInfo(name: String, alias: String, nullable: Boolean, valueClassName: String) {
   val shortName = name.split(".").lastOption.getOrElse(name)
@@ -26,7 +27,7 @@ class Metadata(val columns: IndexedSeq[ColumnInfo]) {
   lazy val availableColumns: Seq[String] = columnIndexMap.keys.toSeq
 
   def get(name: String): ColumnInfo = {
-    columns(indexForColumn(name.toUpperCase))
+    columns(indexForColumn(name.toUpperCase).get)
   }
 
   def get(index: Int): ColumnInfo = {
@@ -36,8 +37,10 @@ class Metadata(val columns: IndexedSeq[ColumnInfo]) {
     columns(index)
   }
 
-  def indexForColumn(columnName: String): Int = {
-    columnIndexMap.getOrElse(columnName.toUpperCase, throw new UnknownColumnException(columnName, availableColumns))
+  def indexForColumn(columnName: String): Try[Int] = {
+    Try {
+      columnIndexMap.getOrElse(columnName.toUpperCase, throw new UnknownColumnException(columnName, availableColumns))
+    }
   }
 }
 

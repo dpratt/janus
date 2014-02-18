@@ -1,18 +1,13 @@
 package janus
 
 import javax.sql.DataSource
-import org.slf4j.LoggerFactory
 
 import scala.concurrent._
 import org.springframework.transaction.PlatformTransactionManager
-
-object Database {
-  private val logger = LoggerFactory.getLogger(classOf[Database])
-}
+import com.typesafe.scalalogging.slf4j.Logging
 
 trait Database {
-
-  import Database._
+  self: Logging =>
 
   def withSession[T](f: Session => T) : T = {
     logger.debug("Creating new session.")
@@ -36,7 +31,7 @@ trait Database {
     logger.debug("Creating new detached session.")
     future {
       withSession(f)
-    }
+    }(defaultExecutionContext)
   }
 
   protected def createSession: Session
@@ -47,7 +42,7 @@ trait Database {
  * A plain Database implementation that does it's own transaction management.
  *
  */
-class JdbcDatabase(ds: DataSource) extends Database {
+class JdbcDatabase(ds: DataSource) extends Database with Logging {
   def createSession: Session = new SimpleSession(ds.getConnection)
 }
 
@@ -58,6 +53,6 @@ class JdbcDatabase(ds: DataSource) extends Database {
  * IMPORTANT - The supplied DataSource *MUST* be synchronized by the provided PlatformTransactionManager. If it is not,
  * undefined (and likely destructive) behavior will occur.
  */
-class SpringDatabase(ds: DataSource, txManager: PlatformTransactionManager) extends Database {
+class SpringDatabase(ds: DataSource, txManager: PlatformTransactionManager) extends Database with Logging {
   def createSession: Session = new SpringSession(ds, txManager)
 }

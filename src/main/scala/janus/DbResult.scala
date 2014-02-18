@@ -94,15 +94,15 @@ sealed trait DbResult[+A] {
 object DbResult {
   import play.api.libs.functional._
 
-  implicit def alternativeDbResult(implicit a: Applicative[DbResult]): Alternative[DbResult] = new Alternative[DbResult] {
-    val app = a
-    def |[A, B >: A](alt1: DbResult[A], alt2: DbResult[B]): DbResult[B] = (alt1, alt2) match {
-      case (DbError(e), DbSuccess(t)) => DbSuccess(t)
-      case (DbSuccess(t), _) => DbSuccess(t)
-      case (DbError(e1), DbError(e2)) => DbError(e1 ++ e2)
-    }
-    def empty: DbResult[Nothing] = DbError(Seq())
-  }
+//  implicit def alternativeDbResult(implicit a: Applicative[DbResult]): Alternative[DbResult] = new Alternative[DbResult] {
+//    val app = a
+//    def |[A, B >: A](alt1: DbResult[A], alt2: DbResult[B]): DbResult[B] = (alt1, alt2) match {
+//      case (DbError(e), DbSuccess(t)) => DbSuccess(t)
+//      case (DbSuccess(t), _) => DbSuccess(t)
+//      case (DbError(e1), DbError(e2)) => DbError(e1 ++ e2)
+//    }
+//    def empty: DbResult[Nothing] = DbError(Seq())
+//  }
 
   implicit val applicativeDbResult: Applicative[DbResult] = new Applicative[DbResult] {
     def pure[A](a: A): DbResult[A] = DbSuccess(a)

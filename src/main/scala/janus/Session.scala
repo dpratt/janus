@@ -3,7 +3,6 @@ package janus
 import javax.sql.DataSource
 import org.springframework.jdbc.datasource.DataSourceUtils
 import java.sql.{ResultSet, Connection}
-import org.slf4j.LoggerFactory
 import util.control.NonFatal
 import org.springframework.transaction.{TransactionStatus, TransactionDefinition, PlatformTransactionManager}
 import org.springframework.transaction.support.DefaultTransactionDefinition
@@ -53,6 +52,15 @@ trait Session {
   def withStatement[T](f: Statement => T): T
 
   /**
+   * Allows, raw, low-level access to the JDBC connection. This is a way to 'break out' of the Janus API
+   * in order to integrate to existing legacy code that requires a low-level connection.
+   *
+   * This Connection object is managed for you - do *NOT* call close on it. However, you are required to clean up
+   * any other resources (Statements, PreparedStatements, ResultSets, etc) you allocate using this connection.
+   */
+  def withConnection[A](f: java.sql.Connection => A): A
+
+  /**
    * Clean up
    */
   def close()
@@ -94,8 +102,6 @@ private[janus] abstract class JdbcSessionBase extends Session with Logging {
 
   protected def applyStatementSettings(stmt: java.sql.Statement): java.sql.Statement
 
-  protected def withConnection[A](f: Connection => A): A
-
   private def createPreparedStatement(c: Connection, query: String, returnGeneratedKeys: Boolean = false): java.sql.PreparedStatement = {
     logger.debug("Creating new PreparedStatement - {}", query)
 
@@ -119,9 +125,7 @@ private[janus] abstract class JdbcSessionBase extends Session with Logging {
 //NOTE - This class will completely and utterly mess up an existing
 //Spring managed transaction. DO NOT USE THIS CLASS IF YOUR DATASOURCE IS SYNCHRONIZED
 //WITH SPRING. You have been warned.
-private[janus] class SimpleSession(conn: Connection) extends JdbcSessionBase {
-
-  import SimpleSession._
+private[janus] class SimpleSession(conn: Connection) extends JdbcSessionBase with Logging {
 
   private var currentTransaction: JdbcTransaction = null
   private var resetAutoCommit = false
@@ -145,11 +149,11 @@ private[janus] class SimpleSession(conn: Connection) extends JdbcSessionBase {
   def withTransaction[A](f: Transaction => A): A = {
 
     if (currentTransaction != null) {
-      log.debug("No need to start new transaction - already in one.")
+      logger.debug("No need to start new transaction - already in one.")
       //if we're already in a transaction, don't need to do anything
       f(new NestedTransaction(currentTransaction))
     } else {
-      log.debug("Starting new transaction.")
+      logger.debug("Starting new transaction.")
       //turn on transactional behavior on the connection
       if (conn.getAutoCommit) {
         //only flip autocommit if we have to
@@ -162,7 +166,7 @@ private[janus] class SimpleSession(conn: Connection) extends JdbcSessionBase {
         f(currentTransaction)
       } catch {
         case NonFatal(e) =>
-          log.debug("Error in transaction. Setting rollback.")
+          logger.debug("Error in transaction. Setting rollback.")
           currentTransaction.setRollback()
           throw e
       } finally {
@@ -178,20 +182,13 @@ private[janus] class SimpleSession(conn: Connection) extends JdbcSessionBase {
   }
 
   //this is a no-op for simple sessions
-  protected def withConnection[A](f: Connection => A): A = f(conn)
+  def withConnection[A](f: Connection => A): A = f(conn)
 
   protected def applyStatementSettings(stmt: java.sql.Statement): java.sql.Statement = stmt
 
 }
 
-object SimpleSession {
-  val log = LoggerFactory.getLogger(classOf[SimpleSession])
-}
-
-private[janus] class SpringSession(ds: DataSource, txManager: PlatformTransactionManager) extends JdbcSessionBase {
-
-  import SpringSession._
-
+private[janus] class SpringSession(ds: DataSource, txManager: PlatformTransactionManager) extends JdbcSessionBase with Logging {
 
   /**
    * Clean up
@@ -205,7 +202,7 @@ private[janus] class SpringSession(ds: DataSource, txManager: PlatformTransactio
    */
   def withTransaction[T](f: (Transaction) => T): T = {
 
-    //TODO - figure out a way to paramaterize proagation and isolation
+    //TODO - figure out a way to parametrize propagation and isolation
     val transactionDef = new DefaultTransactionDefinition()
     transactionDef.setName("janusTransaction")
     transactionDef.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRED)
@@ -225,12 +222,12 @@ private[janus] class SpringSession(ds: DataSource, txManager: PlatformTransactio
       txManager.rollback(tx)
     } catch {
       case NonFatal(e) =>
-        log.error("Exception during rollback masked real exception.", t)
+        logger.error("Exception during rollback masked real exception.", t)
         throw e
     }
   }
 
-  protected def withConnection[A](f: Connection => A): A = {
+  def withConnection[A](f: Connection => A): A = {
     val c = DataSourceUtils.getConnection(ds)
     try {
       f(c)
@@ -245,8 +242,4 @@ private[janus] class SpringSession(ds: DataSource, txManager: PlatformTransactio
     stmt
   }
 
-}
-
-object SpringSession {
-  val log = LoggerFactory.getLogger(classOf[SpringSession])
 }

@@ -11,7 +11,9 @@ package object janus {
   /**
    * The default ExecutionContext for async access to Janus.
    */
-  implicit lazy val defaultExecutionContext = {
+  private[janus] lazy val defaultExecutionContext = {
+    val log = LoggerFactory.getLogger("janus.executionContext")
+
     //TODO - make the thread pool params configurable
     ExecutionContext.fromExecutor(
       new ThreadPoolExecutor(5, 60, 30, TimeUnit.SECONDS, new SynchronousQueue[Runnable],
@@ -34,7 +36,6 @@ package object janus {
       t => log.error("Error in thread pool.", t))
   }
 
-  private val log = LoggerFactory.getLogger("janus")
 
   private[janus] def copyResultSet(resultSet: java.sql.ResultSet): Seq[Row] = {
 
@@ -44,7 +45,6 @@ package object janus {
       for (i <- columnRange) yield rs.getObject(i)
     }
 
-    //val rows: ArrayBuffer[Row] = new ArrayBuffer[Row]
     val rows = IndexedSeq.newBuilder[Row]
     try {
       while(resultSet.next()) {

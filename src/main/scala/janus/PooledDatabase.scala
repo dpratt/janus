@@ -29,7 +29,7 @@ case class H2InMemInfo(username: String, password: String, dbName: String) exten
   def jdbcUrl: String = s"jdbc:h2:mem:$dbName;MVCC=TRUE;DB_CLOSE_DELAY=-1"
 }
 
-class PooledDatabase private (pool: BoneCPDataSource, detachedEc: ExecutionContext) extends Database {
+class PooledDatabase private (pool: BoneCPDataSource, detachedEc: ExecutionContext) extends Database with Logging {
   override def withDetachedSession[T](f: (Session) => T): Future[T] = {
     future {
       withSession(f)

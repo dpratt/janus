@@ -3,6 +3,7 @@ package janus
 import org.joda.time.DateTime
 import java.util.Date
 import com.typesafe.scalalogging.slf4j.Logging
+import scala.util.{Success, Failure, Try}
 
 
 sealed trait DbValue {
@@ -13,6 +14,10 @@ sealed trait DbValue {
   )
 
   def validate[T](implicit rds: DbReads[T]): DbResult[T] = rds.reads(this)
+}
+
+class DbUndefined(message: => String) extends DbValue{
+  override def toString: String = s"DbUndefined($message)"
 }
 
 case class DbString(value: String) extends DbValue
@@ -28,43 +33,50 @@ case object DbNull extends DbValue
 
 class Row private (data: IndexedSeq[DbValue], metadata: Metadata) extends DbValue {
 
-  private def get(index: Int): DbValue = {
-    if(index > data.length) {
-      throw new IllegalArgumentException(s"Invalid column index - $index")
-    }
-    data(index)
-  }
-
   /**
    * Retrieve a value from this row.
    */
   def apply(columnName: String): DbValue = {
-    value(columnName)
-  }
-
-  /**
-   * Retrieve a value from this row.
-   */
-  def value(columnName: String): DbValue = {
-    get(metadata.indexForColumn(columnName))
+    byName(columnName).getOrElse(new DbUndefined(s"Unknown column $columnName"))
   }
 
   /**
    * Retrieve a value from this row.
    * @param index The index of the column in the result set. NOTE - unlike JDBC, this is *zero based*.
-   * @return
    */
   def apply(index: Int): DbValue = {
-    value(index)
+    byIndex(index).getOrElse(new DbUndefined(s"Invalid column index $index"))
+  }
+
+  /**
+   * Retrieve a value from this row.
+   * @throws UnknownColumnException if the column name is not known
+   */
+  def value(columnName: String): DbValue = {
+    byName(columnName).get
   }
 
   /**
    * Retrieve a value from this row.
    * @param index The index of the column in the result set. NOTE - unlike JDBC, this is *zero based*.
+   * @throws UnknownColumnException if the column index is invalid
    */
   def value(index: Int): DbValue = {
-    get(index)
+    byIndex(index).get
   }
+
+  private def byName(name: String): Try[DbValue] = {
+    metadata.indexForColumn(name).map(data(_))
+  }
+
+  private def byIndex(idx: Int): Try[DbValue] = {
+    if(idx > data.length) {
+      Failure(new UnknownColumnException(idx, data.length))
+    } else {
+      Success(data(idx))
+    }
+  }
+
 }
 
 object Row {
@@ -73,9 +85,6 @@ object Row {
     new Row(converted, meta)
   }
 }
-
-
-
 
 object DbValue extends Logging {
 

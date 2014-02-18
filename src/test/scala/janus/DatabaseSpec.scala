@@ -1,14 +1,18 @@
 package janus
 
-import org.scalatest.FlatSpec
+import org.scalatest.{WordSpec, FlatSpec}
 
 import scala.language.postfixOps
 import com.jolbox.bonecp.BoneCPDataSource
 import javax.sql.DataSource
 import org.springframework.jdbc.datasource.DataSourceTransactionManager
 import java.util.UUID
+import java.sql.Connection
+import scala.concurrent.duration.Duration
+import java.util.concurrent.TimeUnit
+import play.api.libs.functional.Functor
 
-class DatabaseSpec extends FlatSpec {
+class DatabaseSpec extends WordSpec {
 
   def basicDatabase = {
     val ds = emptyDataSource()
@@ -20,12 +24,30 @@ class DatabaseSpec extends FlatSpec {
     new SpringDatabase(ds, new DataSourceTransactionManager(ds))
   }
 
-  "A Database based on a simple DataSource" should behave like basicDatabaseBehavior(basicDatabase)
-  "A Database synchronized with Spring transactions" should behave like basicDatabaseBehavior(springDatabase)
+  def pooledDatabase = {
+    val info = H2InMemInfo("sa", "sa", UUID.randomUUID().toString)
+    val db = PooledDatabase(info, 10, 20, Duration(30, TimeUnit.SECONDS))
+    db.withSession { session =>
+      session.withConnection(c => createInitialData(c))
+    }
+    db
+  }
+
+  "A Database" when {
+    "using Spring" should {
+      behave like basicDatabaseBehavior(springDatabase)
+    }
+    "using plain JDBC" should {
+      behave like basicDatabaseBehavior(basicDatabase)
+    }
+    "using thread-bound pooling" should {
+      behave like basicDatabaseBehavior(pooledDatabase)
+    }
+  }
 
   def basicDatabaseBehavior(newDatabase: => Database) {
 
-    it should "support basic queries" in {
+    "support basic queries" in {
       val db = newDatabase
       db.withSession { session =>
         session.withPreparedStatement("select * from test") { ps =>
@@ -39,7 +61,7 @@ class DatabaseSpec extends FlatSpec {
       }
     }
 
-    it should "support inserting inside a transaction" in {
+    "support inserting inside a transaction" in {
       val db = newDatabase
 
       db.withSession { session =>
@@ -61,7 +83,7 @@ class DatabaseSpec extends FlatSpec {
       }
     }
 
-    it should "properly rollback on exception" in {
+    "properly rollback on exception" in {
       val db = newDatabase
 
       db.withSession { session =>
@@ -84,7 +106,7 @@ class DatabaseSpec extends FlatSpec {
       }
     }
 
-    it should "support nested transactions" in {
+    "support nested transactions" in {
       val db = newDatabase
 
       db.withSession { session =>
@@ -119,7 +141,7 @@ class DatabaseSpec extends FlatSpec {
       }
     }
 
-    it should "support manual rollback" in {
+    "support manual rollback" in {
       val db = newDatabase
 
       db.withSession { session =>
@@ -136,20 +158,30 @@ class DatabaseSpec extends FlatSpec {
       }
     }
 
-    case class ColumnByName(id: Long, name: String, score: Option[Long])
+    import play.api.libs.functional.syntax._
+    import RowPath._
 
-    it should "get values from columns by name" in {
+    case class ColumnByName(id: Int, name: String, score: Option[Long])
+
+    implicit val columnByNameReads: DbReads[ColumnByName] = (
+      0.read[Int] and
+      "name".read[String] and
+      "score".readNullable[Long]
+    )(ColumnByName.apply _)
+
+    "get values from columns by name" in {
       val db = newDatabase
 
       db.withSession { session =>
         val row = session.executeQuery("select * from test where id = 1").head
         assertResult(ColumnByName(1, "Hello", Some(23))) {
-          ColumnByName(row("id").as[Int], row("name").as[String], row("score").as[Option[Long]])
+          row.as[ColumnByName]
+          //ColumnByName(row("id").as[Int], row("name").as[String], row("score").as[Option[Long]])
         }
       }
     }
 
-    it should "properly address columns with from multiple tables" in {
+    "properly address columns with from multiple tables" in {
       val db = newDatabase
 
       db.withSession { session =>
@@ -179,37 +211,31 @@ class DatabaseSpec extends FlatSpec {
     dataSource.setJdbcUrl("jdbc:h2:mem:" + dbName + ";MVCC=true")
     dataSource.setUsername("sa")
     dataSource.setPassword("sa")
-    dataSource.setIdleConnectionTestPeriodInMinutes(60)
-    dataSource.setIdleMaxAgeInMinutes(240)
-    dataSource.setMaxConnectionsPerPartition(30)
-    dataSource.setMinConnectionsPerPartition(10)
-    dataSource.setPartitionCount(3)
-    dataSource.setAcquireIncrement(5)
-    dataSource.setStatementsCacheSize(100)
-    dataSource.setReleaseHelperThreads(3)
     //watch for unclosed connections
     dataSource.setCloseConnectionWatch(true)
     dataSource.setCloseConnectionWatchTimeoutInMs(1000)
 
     dataSource.setDefaultAutoCommit(true)
 
-    //uncomment to turn on statement logging
-    //testDB = new Log4jdbcProxyDataSource(JdbcConnectionPool.create("jdbc:h2:mem:test;MVCC=true", "sa", "sa"))
-
     val c = dataSource.getConnection
     try {
-      val stat = c.createStatement()
-      stat.execute("DROP ALL OBJECTS")
-      stat.execute("create table test(id int primary key, name varchar(255) NOT NULL, score BIGINT)")
-      stat.execute("insert into test values(1, 'Hello', 23)")
-
-      stat.execute("create table orgs(id int primary key, name varchar(255) NOT NULL)")
-      stat.execute("create table users(id int primary key, name varchar(255) NOT NULL, org_id int NOT NULL)")
-
+      createInitialData(c)
     } finally {
       c.close()
     }
     dataSource
   }
+
+  private def createInitialData(c: Connection) {
+    val stat = c.createStatement()
+    stat.execute("DROP ALL OBJECTS")
+    stat.execute("create table test(id int primary key, name varchar(255) NOT NULL, score BIGINT)")
+    stat.execute("insert into test values(1, 'Hello', 23)")
+
+    stat.execute("create table orgs(id int primary key, name varchar(255) NOT NULL)")
+    stat.execute("create table users(id int primary key, name varchar(255) NOT NULL, org_id int NOT NULL)")
+    stat.close()
+  }
+
 
 }
